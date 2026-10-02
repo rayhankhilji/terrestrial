@@ -1,0 +1,10 @@
+:root {
+  color-scheme: dark;
+  font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: #070b14;
+  color: #e6edf7;
+}
+body { margin: 0; }
+.boot { display: grid; place-content: center; min-height: 100vh; text-align: center; }
+.boot h1 { font-size: 3rem; margin: 0; letter-spacing: 0.02em; }
+.muted { color: #8b9bb4; }

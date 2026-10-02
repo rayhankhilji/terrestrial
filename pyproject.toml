@@ -1,0 +1,44 @@
+[project]
+name = "terrestrial"
+version = "0.1.0"
+description = "Dark-vessel detection, verification and tracking for the Black Sea: AIS gaps fused with satellite radar."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "fastapi>=0.115",
+    "httpx>=0.28",
+    "pandas>=2.2",
+    "pyarrow>=17",
+    "pyproj>=3.6",
+    "python-dotenv>=1.0",
+    "shapely>=2.0",
+    "uvicorn[standard]>=0.30",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "ruff>=0.6",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra"
+filterwarnings = [
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated",
+]
+markers = [
+    "graph: needs a running TuringDB server (docker compose up -d turingdb)",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM"]

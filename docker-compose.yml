@@ -1,0 +1,15 @@
+# TuringDB graph server for Terrestrial's network layer.
+#   docker compose up -d turingdb    REST API on :6666, graph visualiser on :8080
+#   docker compose down
+# ./data/turing is the server's -turing-dir: graphs/ holds committed graphs and
+# data/ is where the pipeline drops JSONL files for LOAD JSONL.
+services:
+  turingdb:
+    image: turingdbai/turingdb:3.0
+    container_name: terrestrial-turingdb
+    ports:
+      - "6666:6666"
+      - "8080:8080"
+    volumes:
+      - ./data/turing:/home/ubuntu/.turing
+    restart: unless-stopped
