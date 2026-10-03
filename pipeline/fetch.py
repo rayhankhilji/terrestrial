@@ -34,7 +34,9 @@ def event_pages(root: Path, kind: str) -> list[dict]:
     return [read_json(p) for p in sorted(folder.glob("page_*.json"))]
 
 
-def _fetch_events(client: GFWClient, root: Path, kind: str, dataset: str, start: date, end: date, refresh: bool) -> None:
+def _fetch_events(
+    client: GFWClient, root: Path, kind: str, dataset: str, start: date, end: date, refresh: bool
+) -> None:
     folder = root / "events" / kind
     if (folder / "_complete.json").exists() and not refresh:
         log.info("  events %-12s cached", kind)
@@ -49,7 +51,9 @@ def _fetch_events(client: GFWClient, root: Path, kind: str, dataset: str, start:
         entries += len(page["entries"])
         total = page.get("total", total)
         pages += 1
-    write_json(folder / "_complete.json", {"dataset": dataset, "pages": pages, "entries": entries, "total": total})
+    write_json(
+        folder / "_complete.json", {"dataset": dataset, "pages": pages, "entries": entries, "total": total}
+    )
     log.info("  events %-12s %6d entries in %d pages (API total %s)", kind, entries, pages, total)
 
 

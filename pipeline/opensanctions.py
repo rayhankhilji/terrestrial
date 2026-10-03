@@ -24,7 +24,17 @@ RAW = RAW_DIR / "opensanctions"
 CSV_PATH = RAW / "maritime.csv"
 INDEX_PATH = RAW / "index.json"
 EXPECTED_COLUMNS = {
-    "type", "caption", "imo", "risk", "countries", "flag", "mmsi", "id", "url", "datasets", "aliases",
+    "type",
+    "caption",
+    "imo",
+    "risk",
+    "countries",
+    "flag",
+    "mmsi",
+    "id",
+    "url",
+    "datasets",
+    "aliases",
 }
 IMO_RE = re.compile(r"^IMO(\d{7})$")
 
@@ -83,6 +93,9 @@ def normalise(csv_path: Path = CSV_PATH) -> pd.DataFrame:
     df = pd.DataFrame(rows)
     log.info(
         "  opensanctions: %d vessels (%d sanctions-relevant, %d shadow fleet, %d detained)",
-        len(df), df["sanctioned"].sum(), df["shadow_fleet"].sum(), df["detained"].sum(),
+        len(df),
+        df["sanctioned"].sum(),
+        df["shadow_fleet"].sum(),
+        df["detained"].sum(),
     )
     return df

@@ -1,0 +1,149 @@
+"""Live service: `uv run uvicorn live.server:app --port 8001` (the web app proxies /live).
+
+WebSocket /live/ws sends one `snapshot`, then `batch` messages flushed every FLUSH_MS with
+every upsert / relation / alert since the last flush, plus a `status` heartbeat. Sources run
+as background tasks on their own schedules; nothing is fetched on request.
+
+Set LIVE_REPLAY=data/live/YYYYMMDD.jsonl to replay a recording instead of polling sources
+(for demos without network); LIVE_REPLAY_SPEED speeds it up.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+import os
+from contextlib import asynccontextmanager, suppress
+from pathlib import Path
+
+from fastapi import Body, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+
+from live import replay
+from live.correlate import Correlator
+from live.hub import Hub, now_ms
+from live.sentinels import SentinelEngine
+from live.sources import adsb, ais, firms, gdelt, weather, wikidata
+from pipeline.config import LIVE_DIR
+
+log = logging.getLogger("terrestrial.live")
+
+FLUSH_MS = 50
+STATUS_EVERY_S = 2.0
+MAX_BATCH = 2000
+
+REPLAY = os.environ.get("LIVE_REPLAY", "").strip()
+
+hub = Hub(record_dir=None if REPLAY else LIVE_DIR)
+sentinels = SentinelEngine()
+
+
+async def _expire_loop() -> None:
+    while True:
+        await asyncio.sleep(5)
+        hub.expire()
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%H:%M:%S")
+    facilities = await asyncio.to_thread(wikidata.load_into, hub)
+    hub.listeners.append(Correlator(facilities))
+    hub.listeners.append(sentinels)
+    if REPLAY:
+        speed = float(os.environ.get("LIVE_REPLAY_SPEED", "1"))
+        tasks = [asyncio.create_task(replay.run(hub, Path(REPLAY), speed))]
+    else:
+        tasks = [asyncio.create_task(src.run(hub)) for src in (adsb, weather, gdelt, ais, firms)]
+    tasks.append(asyncio.create_task(_expire_loop()))
+    try:
+        yield
+    finally:
+        for task in tasks:
+            task.cancel()
+        for task in tasks:
+            with suppress(asyncio.CancelledError):
+                await task
+
+
+app = FastAPI(title="Terrestrial live", lifespan=lifespan)
+
+
+@app.get("/live/status")
+def status() -> dict:
+    return {
+        "mode": "replay" if REPLAY else "live",
+        "sources": hub.status(),
+        "entities": len(hub.entities),
+        "relations": len(hub.relations),
+        "server_time": now_ms(),
+    }
+
+
+@app.get("/live/snapshot")
+def snapshot() -> dict:
+    return hub.snapshot()
+
+
+@app.get("/live/sentinels")
+def list_sentinels() -> list[dict]:
+    return sentinels.list()
+
+
+@app.put("/live/sentinels/{sentinel_id}")
+def put_sentinel(sentinel_id: str, sentinel: dict = Body(...)) -> dict:
+    if sentinel.get("id") != sentinel_id:
+        raise HTTPException(400, "sentinel id in body must match the URL")
+    try:
+        saved = sentinels.put(sentinel)
+    except (ValueError, KeyError, TypeError) as exc:
+        raise HTTPException(422, str(exc)) from exc
+    hub.publish({"t": "sentinels", "sentinels": sentinels.list()})
+    return saved
+
+
+@app.delete("/live/sentinels/{sentinel_id}")
+def delete_sentinel(sentinel_id: str) -> dict:
+    try:
+        sentinels.delete(sentinel_id)
+    except KeyError as exc:
+        raise HTTPException(404, f"no sentinel {sentinel_id}") from exc
+    hub.publish({"t": "sentinels", "sentinels": sentinels.list()})
+    return {"deleted": sentinel_id}
+
+
+@app.websocket("/live/ws")
+async def stream(ws: WebSocket) -> None:
+    await ws.accept()
+    queue = hub.subscribe()
+    try:
+        await ws.send_json(
+            {**hub.snapshot(), "mode": "replay" if REPLAY else "live", "sentinels": sentinels.list()}
+        )
+        last_status = 0.0
+        loop = asyncio.get_running_loop()
+        while True:
+            batch: list[dict] = []
+            with suppress(TimeoutError):
+                batch.append(await asyncio.wait_for(queue.get(), timeout=STATUS_EVERY_S))
+            deadline = loop.time() + FLUSH_MS / 1000
+            while len(batch) < MAX_BATCH and (remaining := deadline - loop.time()) > 0:
+                try:
+                    batch.append(await asyncio.wait_for(queue.get(), timeout=remaining))
+                except TimeoutError:
+                    break
+            if any(m["t"] == "resync" for m in batch):
+                await ws.send_json(
+                    {**hub.snapshot(), "mode": "replay" if REPLAY else "live", "sentinels": sentinels.list()}
+                )
+                continue
+            if batch:
+                await ws.send_json({"t": "batch", "m": batch, "srv": now_ms()})
+            if loop.time() - last_status >= STATUS_EVERY_S:
+                await ws.send_json(
+                    {"t": "status", "sources": hub.status(), "srv": now_ms(), "entities": len(hub.entities)}
+                )
+                last_status = loop.time()
+    except WebSocketDisconnect:
+        pass
+    finally:
+        hub.unsubscribe(queue)

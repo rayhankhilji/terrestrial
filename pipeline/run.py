@@ -47,8 +47,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--days", type=int, help=f"window length in days (default {DEFAULT_DAYS})")
     parser.add_argument("--start", help="window start date YYYY-MM-DD (default: end = today - 5 days)")
     parser.add_argument("--refresh", action="store_true", help="bypass the raw cache and re-fetch")
-    parser.add_argument("--only", choices=[s for s, _ in STAGES], action="append", help="run only these stages")
-    parser.add_argument("--from", dest="from_stage", choices=[s for s, _ in STAGES], help="start at this stage")
+    parser.add_argument(
+        "--only", choices=[s for s, _ in STAGES], action="append", help="run only these stages"
+    )
+    parser.add_argument(
+        "--from", dest="from_stage", choices=[s for s, _ in STAGES], help="start at this stage"
+    )
     parser.add_argument("--no-graph", action="store_true", help="skip the TuringDB graph stage")
     parser.add_argument("--no-ai", action="store_true", help="skip AI briefs")
     args = parser.parse_args(argv)

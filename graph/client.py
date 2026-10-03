@@ -110,9 +110,7 @@ class TuringDB:
         """Load an on-disk graph if the server has not loaded it yet (e.g. after restart)."""
         graphs = self.available_graphs()
         if graph not in graphs:
-            raise TuringDBError(
-                f"graph {graph!r} does not exist on the server; run the pipeline graph stage"
-            )
+            raise TuringDBError(f"graph {graph!r} does not exist on the server; run the pipeline graph stage")
         if not graphs[graph]:
             self.query(f"LOAD GRAPH {graph}", graph="default")
 

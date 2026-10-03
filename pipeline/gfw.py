@@ -80,9 +80,7 @@ class GFWClient:
                         raise GFWError(f"{method} {path}: expected a JSON object, got {type(body)}")
                     return body
                 if response.status_code not in RETRY_STATUSES or attempt == MAX_ATTEMPTS:
-                    raise GFWError(
-                        f"{method} {path} → HTTP {response.status_code}: {response.text[:500]}"
-                    )
+                    raise GFWError(f"{method} {path} → HTTP {response.status_code}: {response.text[:500]}")
                 wait = float(response.headers.get("Retry-After") or 2**attempt)
             log.warning("  GFW %s %s: retry %d in %.0fs", method, path, attempt, wait)
             time.sleep(wait)

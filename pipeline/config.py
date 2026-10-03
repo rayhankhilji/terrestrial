@@ -115,9 +115,7 @@ def gfw_token() -> str:
 
 # --- OpenSanctions -----------------------------------------------------------------------
 
-OPENSANCTIONS_MARITIME_URL = (
-    "https://data.opensanctions.org/datasets/latest/maritime/maritime.csv"
-)
+OPENSANCTIONS_MARITIME_URL = "https://data.opensanctions.org/datasets/latest/maritime/maritime.csv"
 OPENSANCTIONS_INDEX_URL = "https://data.opensanctions.org/datasets/latest/maritime/index.json"
 
 # --- TuringDB ----------------------------------------------------------------------------
@@ -140,3 +138,15 @@ def featherless_key() -> str | None:
 
 def featherless_model() -> str:
     return os.environ.get("FEATHERLESS_MODEL", "").strip() or FEATHERLESS_DEFAULT_MODEL
+
+
+# --- Live layer ---------------------------------------------------------------------------
+
+LIVE_DIR = DATA_DIR / "live"  # recordings for replay
+# Wider "theatre" box for live air picture and news: Black Sea, Ukraine, south-west Russia.
+THEATRE_BBOX: tuple[float, float, float, float] = (22.0, 40.0, 45.0, 53.0)
+
+
+def optional_key(name: str) -> str | None:
+    value = os.environ.get(name, "").strip()
+    return value or None

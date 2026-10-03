@@ -1,5 +1,5 @@
 # Convenience targets. Every target is a thin wrapper over the commands in CLAUDE.md §12.
-.PHONY: setup graph-up graph-down pipeline pipeline-core api web test test-graph lint check
+.PHONY: setup graph-up graph-down pipeline pipeline-core api live web test test-graph lint check
 
 setup:            ## install Python and web dependencies
 	uv sync
@@ -19,6 +19,9 @@ pipeline-core:    ## pipeline without the graph layer
 
 api:              ## FastAPI on :8000
 	uv run uvicorn api.main:app --reload --port 8000
+
+live:             ## live service on :8001 (ADS-B, AIS, FIRMS, GDELT, weather → WebSocket)
+	uv run uvicorn live.server:app --port 8001
 
 web:              ## Vite dev server on :5173 (proxies /api to :8000)
 	cd web && npm run dev

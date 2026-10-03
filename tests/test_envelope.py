@@ -61,9 +61,7 @@ def test_ellipse_axes_are_oriented_along_the_gap():
         assert env.polygon.contains(Point(geo.destination(*mid, azimuth, semi_axis - 2)))
         assert not env.polygon.contains(Point(geo.destination(*mid, azimuth, semi_axis + 2)))
     # The foci identity b² = a² − c² holds.
-    assert env.semi_minor_km == pytest.approx(
-        math.sqrt(env.semi_major_km**2 - env.focal_half_km**2)
-    )
+    assert env.semi_minor_km == pytest.approx(math.sqrt(env.semi_major_km**2 - env.focal_half_km**2))
 
 
 def test_impossible_gap_sets_flag_and_falls_back_to_circle_at_b():
@@ -92,7 +90,13 @@ def test_non_finite_coordinates_raise():
 
 @pytest.mark.parametrize(
     ("vessel_type", "expected"),
-    [("Oil Tanker", "tanker"), ("CARGO", "cargo"), ("bulk_carrier", "cargo"), ("fishing", "default"), (None, "default")],
+    [
+        ("Oil Tanker", "tanker"),
+        ("CARGO", "cargo"),
+        ("bulk_carrier", "cargo"),
+        ("fishing", "default"),
+        (None, "default"),
+    ],
 )
 def test_vessel_class_mapping(vessel_type, expected):
     assert vessel_class(vessel_type) == expected

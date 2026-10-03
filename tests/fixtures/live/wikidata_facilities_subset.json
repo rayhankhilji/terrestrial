@@ -1,0 +1,130 @@
+[
+ {
+  "qid": "Q64853035",
+  "name": "Novorossiysk Airport",
+  "type": "airbase",
+  "lon": 37.778,
+  "lat": 44.6715,
+  "country": "Russia"
+ },
+ {
+  "qid": "Q2985601",
+  "name": "Sevastopol International Airport",
+  "type": "airbase",
+  "lon": 33.583333333,
+  "lat": 44.683333333,
+  "country": "Ukraine"
+ },
+ {
+  "qid": "Q4325146",
+  "name": "Novorossiysk naval base",
+  "type": "naval base",
+  "lon": 37.8338,
+  "lat": 44.7209,
+  "country": "Russia"
+ },
+ {
+  "qid": "Q4411903",
+  "name": "Sevastopol Naval Base",
+  "type": "naval base",
+  "lon": 33.53,
+  "lat": 44.607778,
+  "country": "Russia"
+ },
+ {
+  "qid": "Q111387157",
+  "name": "Kavkaz Oil Terminal",
+  "type": "port",
+  "lon": 36.65,
+  "lat": 45.333333333,
+  "country": "Russia"
+ },
+ {
+  "qid": "Q14812992",
+  "name": "Kerch Fishing Port",
+  "type": "port",
+  "lon": 36.4603,
+  "lat": 45.3383,
+  "country": "Ukraine"
+ },
+ {
+  "qid": "Q4211845",
+  "name": "Kerch Seaport Komysh-Burun",
+  "type": "port",
+  "lon": 36.425,
+  "lat": 45.270833333,
+  "country": "Ukraine"
+ },
+ {
+  "qid": "Q2104749",
+  "name": "Port Kavkaz",
+  "type": "port",
+  "lon": 36.66666667,
+  "lat": 45.33333333,
+  "country": "Russia"
+ },
+ {
+  "qid": "Q4084163",
+  "name": "Port of Berdiansk",
+  "type": "port",
+  "lon": 36.783333,
+  "lat": 46.75,
+  "country": "Ukraine"
+ },
+ {
+  "qid": "Q4482815",
+  "name": "Port of Feodosia",
+  "type": "port",
+  "lon": 35.39194444,
+  "lat": 45.02555556,
+  "country": "Russia"
+ },
+ {
+  "qid": "Q4219713",
+  "name": "Port of Kerch",
+  "type": "port",
+  "lon": 36.48388889,
+  "lat": 45.35861111,
+  "country": "Ukraine"
+ },
+ {
+  "qid": "Q4325167",
+  "name": "Port of Novorossiysk",
+  "type": "port",
+  "lon": 37.7889,
+  "lat": 44.7256,
+  "country": "Russia"
+ },
+ {
+  "qid": "Q4411928",
+  "name": "Port of Sevastopol",
+  "type": "port",
+  "lon": 33.52638889,
+  "lat": 44.61555556,
+  "country": "Russia"
+ },
+ {
+  "qid": "Q108718020",
+  "name": "Tuapse",
+  "type": "port",
+  "lon": 39.06167,
+  "lat": 44.09611,
+  "country": "Russia"
+ },
+ {
+  "qid": "Q111387097",
+  "name": "Tuapse",
+  "type": "port",
+  "lon": 39.066666666,
+  "lat": 44.1,
+  "country": "Russia"
+ },
+ {
+  "qid": "Q112960406",
+  "name": "Afipsky refinery",
+  "type": "refinery",
+  "lon": 38.821944444,
+  "lat": 44.881666666,
+  "country": "Russia"
+ }
+]

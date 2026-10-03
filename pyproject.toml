@@ -14,6 +14,7 @@ dependencies = [
     "python-dotenv>=1.0",
     "shapely>=2.0",
     "uvicorn[standard]>=0.30",
+    "websockets>=17.1",
 ]
 
 [dependency-groups]
@@ -37,8 +38,13 @@ markers = [
 ]
 
 [tool.ruff]
-line-length = 100
+line-length = 110
 target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "SIM"]
+# Long user-facing strings are clearer unwrapped; the formatter owns code line length.
+ignore = ["E501"]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Body", "fastapi.Query", "fastapi.Depends"]

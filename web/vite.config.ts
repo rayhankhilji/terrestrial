@@ -1,11 +1,15 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// The FastAPI backend (uv run uvicorn api.main:app --port 8000) serves /api.
+// /api: FastAPI over the processed pipeline output (make api, :8000)
+// /live: the live service, REST + WebSocket (make live, :8001)
 export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
-    proxy: { '/api': 'http://localhost:8000' },
+    proxy: {
+      '/api': 'http://localhost:8000',
+      '/live': { target: 'http://localhost:8001', ws: true },
+    },
   },
 })

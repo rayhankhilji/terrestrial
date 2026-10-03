@@ -90,9 +90,7 @@ def reachability_ellipse(
 
     b = max(math.sqrt(a * a - c * c), MIN_SEMI_MINOR_KM)
     mid_lon, mid_lat = geo.midpoint(a_lon, a_lat, b_lon, b_lat)
-    local = CRS.from_proj4(
-        f"+proj=aeqd +lat_0={mid_lat} +lon_0={mid_lon} +datum=WGS84 +units=m +no_defs"
-    )
+    local = CRS.from_proj4(f"+proj=aeqd +lat_0={mid_lat} +lon_0={mid_lon} +datum=WGS84 +units=m +no_defs")
     to_local = Transformer.from_crs("EPSG:4326", local, always_xy=True)
     to_wgs84 = Transformer.from_crs(local, "EPSG:4326", always_xy=True)
 
