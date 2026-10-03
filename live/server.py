@@ -14,6 +14,7 @@ import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager, suppress
+from dataclasses import asdict
 from pathlib import Path
 
 from fastapi import Body, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
@@ -24,6 +25,7 @@ from live.hub import Hub, now_ms
 from live.sentinels import SentinelEngine
 from live.sources import adsb, ais, firms, gdelt, weather, wikidata
 from pipeline.config import LIVE_DIR
+from reference.airfields import airfields
 
 log = logging.getLogger("terrestrial.live")
 
@@ -63,6 +65,7 @@ async def lifespan(_: FastAPI):
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%H:%M:%S")
     logging.getLogger("httpx").setLevel(logging.WARNING)
     facilities = await asyncio.to_thread(wikidata.load_into, hub)
+    await asyncio.to_thread(airfields)  # warm the reference cache before the first request
     hub.listeners.append(Correlator(facilities))
     hub.listeners.append(sentinels)
     if REPLAY:
@@ -96,6 +99,12 @@ def status() -> dict:
         "relations": len(hub.relations),
         "server_time": now_ms(),
     }
+
+
+@app.get("/live/airfields")
+def list_airfields(military_only: bool = False) -> list[dict]:
+    """Airfields in the military area (OurAirports): static reference, served from cache."""
+    return [asdict(a) for a in airfields() if a.military or not military_only]
 
 
 @app.get("/live/snapshot")

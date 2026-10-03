@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { live, p50, useLive } from '../lib/live'
 import { ms, utc } from '../lib/format'
+import { visible } from '../lib/picture'
 import { ui, useStore } from '../lib/store'
 
 function Clock() {
@@ -17,7 +18,8 @@ export function TopBar() {
   const basemap = useStore(ui, (s) => s.basemap)
   const globe = useStore(ui, (s) => s.globe)
   const terrain = useStore(ui, (s) => s.terrain)
-  const tracks = [...live.entities.values()].filter((e) => e.kind === 'aircraft' || e.kind === 'vessel').length
+  const picture = useStore(ui, (s) => s.mode)
+  const tracks = [...live.entities.values()].filter((e) => (e.kind === 'aircraft' || e.kind === 'vessel') && visible(e, ui.get())).length
   const mode = live.mode
 
   return (
@@ -26,8 +28,16 @@ export function TopBar() {
         <img src="/favicon.svg" alt="" width={30} height={30} />
         <div>
           <div className="brand-name">TERRESTRIAL</div>
-          <div className="brand-sub">Black Sea maritime &amp; air picture</div>
+          <div className="brand-sub">{picture === 'military' ? 'Military air & naval picture' : 'Maritime intelligence · dark vessels'}</div>
         </div>
+      </div>
+
+      <div className="mode-switch" role="tablist" aria-label="Picture">
+        {(['military', 'maritime'] as const).map((m) => (
+          <button key={m} role="tab" aria-selected={picture === m} className={picture === m ? 'on' : ''} onClick={() => ui.set({ mode: m })}>
+            {m === 'military' ? 'Military' : 'Maritime'}
+          </button>
+        ))}
       </div>
 
       <div className="status-strip">

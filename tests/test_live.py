@@ -8,23 +8,33 @@ import pytest
 
 from live.correlate import Correlator
 from live.hub import Hub, now_ms
+from live.milclass import MilClassifier
 from live.sentinels import DEFAULTS, SentinelEngine, validate
 from live.sources import adsb, gdelt, wikidata
 from pipeline.config import THEATRE_BBOX
+from reference.aircraftdb import load_from as load_register
+from reference.icao_ranges import load_from as load_ranges
 
 FIX = Path(__file__).parent / "fixtures" / "live"
+REF = Path(__file__).parent / "fixtures" / "reference"
+CLASSIFY = MilClassifier(load_register(REF / "basic_ac_db_sample.json.gz"), load_ranges(REF / "flags.js"))
+
+
+def _mil_entity(ac, military_feed=True):
+    return adsb.to_entity(ac, time.time(), CLASSIFY(ac, military_feed))
 
 
 def _load(name):
     return json.loads((FIX / name).read_text())
 
 
-def test_adsb_point_response_parses_to_aircraft_entities():
+def test_adsb_point_response_keeps_only_military_aircraft():
     body = _load("adsbfi_point.json")
     received = time.time()
-    entities = [e for ac in body["aircraft"] if (e := adsb.to_entity(ac, received, False))]
-    assert entities
+    entities = [e for ac in body["aircraft"] if (e := adsb.to_entity(ac, received, CLASSIFY(ac)))]
+    assert 0 < len(entities) < len(body["aircraft"]) // 10  # civil traffic is dropped at ingest
     for e in entities:
+        assert e["props"]["military"] and e["props"]["mil_evidence"]
         assert e["id"].startswith("aircraft:") and e["kind"] == "aircraft"
         assert -90 <= e["lat"] <= 90 and -180 <= e["lon"] <= 180
         assert e["alt"] >= 0
@@ -33,8 +43,9 @@ def test_adsb_point_response_parses_to_aircraft_entities():
 
 def test_adsb_military_feed_marks_aircraft_military():
     body = _load("adsblol_mil_subset.json")
-    entities = [e for ac in body["ac"] if (e := adsb.to_entity(ac, time.time(), True))]
+    entities = [e for ac in body["ac"] if (e := _mil_entity(ac))]
     assert entities and all(e["props"]["military"] for e in entities)
+    assert all(e["props"]["state"] for e in entities)
 
 
 def test_gdelt_parser_keeps_located_force_events_in_theatre():
@@ -128,7 +139,7 @@ def test_sentinel_fires_once_per_cooldown_on_real_military_aircraft(tmp_path, mo
     hub = Hub()
     hub.listeners.append(engine)
     ac = _load("adsblol_mil_subset.json")["ac"][0]
-    entity = adsb.to_entity(ac, time.time(), True)
+    entity = _mil_entity(ac)
     hub.upsert(entity)
     moved = {**entity, "lat": entity["lat"] + 0.01, "ts": entity["ts"] + 1000}
     hub.upsert(moved)
@@ -140,8 +151,7 @@ def test_sentinel_fires_once_per_cooldown_on_real_military_aircraft(tmp_path, mo
 def test_hub_fans_out_and_expires():
     hub = Hub()
     q = hub.subscribe()
-    body = _load("adsbfi_point.json")
-    entity = adsb.to_entity(body["aircraft"][0], time.time(), False)
+    entity = _mil_entity(_load("adsblol_mil_subset.json")["ac"][0])
     hub.upsert(entity)
     assert q.get_nowait()["t"] == "upsert"
     hub.entities[entity["id"]]["rx"] -= 10 * 60 * 1000

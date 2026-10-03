@@ -14,9 +14,12 @@ from datetime import datetime
 
 import websockets
 
+from live import navclass
 from live.hub import Hub, now_ms
 from pipeline import opensanctions
 from pipeline.config import BBOX, optional_key
+from reference.mids import Mids
+from reference.mids import mids as load_mids
 
 log = logging.getLogger("terrestrial.live")
 
@@ -91,7 +94,7 @@ class SanctionsIndex:
         return None
 
 
-def handle(hub: Hub, message: dict, sanctions: SanctionsIndex) -> None:
+def handle(hub: Hub, message: dict, sanctions: SanctionsIndex, mids: Mids) -> None:
     kind = message.get("MessageType")
     meta = message.get("MetaData") or {}
     mmsi = str(meta.get("MMSI") or "")
@@ -136,6 +139,8 @@ def handle(hub: Hub, message: dict, sanctions: SanctionsIndex) -> None:
         props["nav_status"] = body.get("NavigationalStatus")
 
     props.setdefault("name", (meta.get("ShipName") or "").strip() or None)
+    # Naval vessels belong to the military picture; merchant traffic feeds Maritime mode only.
+    props.update(navclass.classify(props, mmsi, mids))
     hit = sanctions.match(props.get("imo"), mmsi)
     props["sanctions"] = {**hit[0], "matched_on": hit[1]} if hit else None
     hub.upsert(
@@ -159,6 +164,7 @@ async def run(hub: Hub) -> None:
         hub.source(NAME).detail = "set AISSTREAM_API_KEY in .env (free at aisstream.io)"
         return
     sanctions = SanctionsIndex()
+    mids = await asyncio.to_thread(load_mids)
     min_lon, min_lat, max_lon, max_lat = BBOX
     subscription = {
         "APIKey": key,
@@ -176,7 +182,7 @@ async def run(hub: Hub) -> None:
                     message = json.loads(raw)
                     if "error" in message:
                         raise RuntimeError(message["error"])
-                    handle(hub, message, sanctions)
+                    handle(hub, message, sanctions, mids)
                     hub.source(NAME).last_ok = now_ms()
         except (OSError, websockets.WebSocketException, RuntimeError, ValueError) as exc:
             hub.source_error(NAME, f"{type(exc).__name__}: {exc}; reconnecting in {backoff:.0f}s")

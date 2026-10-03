@@ -1,23 +1,27 @@
 import { useMemo } from 'react'
 import { type Alert, type Entity, live, useLive } from '../lib/live'
 import { ago, describe, kindLabel } from '../lib/format'
+import { visible } from '../lib/picture'
 import { type LeftTab, select, ui, useStore } from '../lib/store'
 import { entityColor } from '../map/liveLayers'
 import { IntelList } from './IntelList'
 
-const TABS: { key: LeftTab; label: string }[] = [
+const TABS: { key: LeftTab; label: string; maritime?: boolean }[] = [
   { key: 'alerts', label: 'Alerts' },
   { key: 'live', label: 'Live' },
-  { key: 'vessels', label: 'Dark vessels' },
+  { key: 'vessels', label: 'Dark vessels', maritime: true },
 ]
 
 export function LeftPanel() {
-  const tab = useStore(ui, (s) => s.leftTab)
+  const selectedTab = useStore(ui, (s) => s.leftTab)
+  const mode = useStore(ui, (s) => s.mode)
+  const tabs = TABS.filter((t) => !t.maritime || mode === 'maritime')
+  const tab = tabs.some((t) => t.key === selectedTab) ? selectedTab : 'live'
   useLive(700)
   return (
     <aside className="left">
       <nav className="tabs">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button key={t.key} className={tab === t.key ? 'on' : ''} onClick={() => ui.set({ leftTab: t.key })}>
             {t.label}
             {t.key === 'alerts' && live.alerts.length > 0 && <span className="count">{live.alerts.length}</span>}
@@ -64,15 +68,18 @@ function Alerts() {
   )
 }
 
-const KIND_ORDER: Entity['kind'][] = ['vessel', 'aircraft', 'fire', 'news', 'station', 'facility']
+const KIND_ORDER: Entity['kind'][] = ['aircraft', 'vessel', 'fire', 'news', 'station', 'facility']
 
 function LiveList() {
   const search = useStore(ui, (s) => s.search)
   const selected = useStore(ui, (s) => s.selected)
+  const mode = useStore(ui, (s) => s.mode)
+  const states = useStore(ui, (s) => s.states)
   const version = live.version
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase()
     return [...live.entities.values()]
+      .filter((e) => visible(e, { mode, states }))
       .filter((e) => e.kind !== 'facility' || q)
       .filter((e) => !q || e.label.toLowerCase().includes(q) || JSON.stringify(e.props).toLowerCase().includes(q))
       .sort((a, b) => {
@@ -84,7 +91,7 @@ function LiveList() {
       })
       .slice(0, 400)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, version])
+  }, [search, version, mode, states])
 
   return (
     <>

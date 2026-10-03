@@ -1,3 +1,4 @@
+import { ROLE_LABELS } from './picture'
 import type { Entity } from './live'
 
 export function ago(ts: number, now = Date.now()): string {
@@ -30,10 +31,15 @@ export function coord(lon: number, lat: number): string {
 
 export function kindLabel(e: Entity): string {
   switch (e.kind) {
-    case 'aircraft':
-      return e.props.uav ? 'Unmanned aircraft' : e.props.military ? 'Military aircraft' : 'Aircraft'
+    case 'aircraft': {
+      const p = e.props
+      const what = p.uav ? 'Unmanned aircraft' : p.airframe === 'helicopter' ? 'Military helicopter' : p.military ? 'Military aircraft' : 'Aircraft'
+      return p.state ? `${what} · ${p.state}` : what
+    }
     case 'vessel':
-      return e.props.sanctions?.sanctioned ? 'Listed vessel' : 'Vessel'
+      if (e.props.sanctions?.sanctioned) return 'Listed vessel'
+      if (e.props.military) return `${e.props.naval_role === 'law_enforcement' ? 'Law-enforcement vessel' : 'Naval vessel'}${e.props.state ? ` · ${e.props.state}` : ''}`
+      return 'Vessel'
     case 'fire':
       return 'Thermal anomaly'
     case 'news':
@@ -49,7 +55,8 @@ export function describe(e: Entity): string {
   switch (e.kind) {
     case 'aircraft': {
       const ft = e.alt != null ? `${num(e.alt / 0.3048)} ft` : ''
-      return [e.props.type, ft, e.spd != null ? `${num(e.spd)} kn` : '', ago(e.orig_ts ?? e.ts)].filter(Boolean).join(' · ')
+      const role = e.props.role && e.props.role !== 'unknown' ? (ROLE_LABELS[e.props.role] ?? e.props.role) : ''
+      return [role, e.props.designation ?? e.props.type, ft, e.spd != null ? `${num(e.spd)} kn` : '', ago(e.orig_ts ?? e.ts)].filter(Boolean).join(' · ')
     }
     case 'vessel':
       return [e.props.ship_type, e.spd != null ? `${num(e.spd, 1)} kn` : '', e.props.destination ? `→ ${e.props.destination}` : '', ago(e.orig_ts ?? e.ts)]

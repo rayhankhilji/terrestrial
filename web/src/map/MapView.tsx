@@ -5,11 +5,13 @@ import type { Map as MLMap } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import { useEffect, useRef, useState } from 'react'
+import { describe, kindLabel } from '../lib/format'
 import { type Entity, live } from '../lib/live'
+import { type Airfield, loadAirfields } from '../lib/picture'
 import { select, ui, useStore } from '../lib/store'
 import { CARTO_DARK, satelliteStyle, TERRAIN_SOURCE } from './basemaps'
 import { liveLayers } from './liveLayers'
-import { Tooltip } from './Tooltip'
+import { type HoverInfo, Tooltip } from './Tooltip'
 
 maplibregl.setWorkerUrl(maplibreWorkerUrl)
 
@@ -31,7 +33,7 @@ export default function MapView() {
   const mapRef = useRef<MLMap | null>(null)
   const overlayRef = useRef<MapLibreOverlay | null>(null)
   const readyRef = useRef(false)
-  const [hover, setHover] = useState<{ x: number; y: number; entity: Entity } | null>(null)
+  const [hover, setHover] = useState<HoverInfo | null>(null)
   const basemap = useStore(ui, (s) => s.basemap)
   const globe = useStore(ui, (s) => s.globe)
   const terrain = useStore(ui, (s) => s.terrain)
@@ -64,8 +66,13 @@ export default function MapView() {
       if (e?.id) select(e.id)
     }
     const onHover = (info: PickingInfo) => {
-      const e = info.object as Entity | undefined
-      setHover(e?.id ? { x: info.x, y: info.y, entity: e } : null)
+      const o = info.object as (Entity & Partial<Airfield>) | undefined
+      if (o?.id) setHover({ x: info.x, y: info.y, kind: kindLabel(o), title: o.label, sub: describe(o) })
+      else if (o?.ident) {
+        const a = o as unknown as Airfield
+        const sub = [a.icao ?? a.ident, a.country, a.kind.replace('_', ' '), a.military_rule && `matched “${a.military_rule}”`]
+        setHover({ x: info.x, y: info.y, kind: a.military ? 'Military airfield' : 'Airfield', title: a.name, sub: sub.filter(Boolean).join(' · ') })
+      } else setHover(null)
     }
 
     // Projection and terrain must be in place before deck attaches, so its first view matches.
@@ -115,6 +122,7 @@ export default function MapView() {
       raf = requestAnimationFrame(frame)
     })
     live.connect()
+    void loadAirfields()
     return () => {
       cancelAnimationFrame(raf)
       overlayRef.current = null
@@ -142,7 +150,7 @@ export default function MapView() {
   return (
     <div className="map-wrap">
       <div ref={container} className="map" />
-      {hover && <Tooltip x={hover.x} y={hover.y} entity={hover.entity} />}
+      {hover && <Tooltip {...hover} />}
     </div>
   )
 }

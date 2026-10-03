@@ -3,8 +3,9 @@ import { PathStyleExtension, type PathStyleExtensionProps } from '@deck.gl/exten
 import { LineLayer, PathLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers'
 import { SimpleMeshLayer } from '@deck.gl/mesh-layers'
 import { ahead, type Entity, live, projected } from '../lib/live'
+import { type Airfield, airfields, visible } from '../lib/picture'
 import type { UIState } from '../lib/store'
-import { aircraftMesh, shipMesh } from './meshes'
+import { aircraftMesh, helicopterMesh, shipMesh, uavMesh } from './meshes'
 
 export type RGBA = [number, number, number, number]
 
@@ -12,6 +13,13 @@ export const COLORS = {
   civil: [147, 197, 253, 255] as RGBA,
   military: [251, 191, 36, 255] as RGBA,
   uav: [244, 114, 182, 255] as RGBA,
+  isr: [251, 191, 36, 255] as RGBA,
+  tanker: [45, 212, 191, 255] as RGBA,
+  airlift: [147, 197, 253, 255] as RGBA,
+  combat: [248, 113, 113, 255] as RGBA,
+  rotary: [163, 230, 53, 255] as RGBA,
+  naval_ship: [56, 189, 248, 255] as RGBA,
+  airfield: [203, 213, 225, 255] as RGBA,
   vessel: [94, 234, 212, 255] as RGBA,
   listed: [244, 63, 94, 255] as RGBA,
   fire: [255, 122, 48, 255] as RGBA,
@@ -25,6 +33,8 @@ export const COLORS = {
 }
 
 const AIRCRAFT_MESH = aircraftMesh()
+const HELICOPTER_MESH = helicopterMesh()
+const UAV_MESH = uavMesh()
 const SHIP_MESH = shipMesh()
 const PING_MS = 1600
 const MESH_MIN_ZOOM = 5.5
@@ -32,14 +42,34 @@ const ALERT_RIPPLE_MS = 12000
 const DASH = new PathStyleExtension({ dash: true })
 const ON_TOP = { depthCompare: 'always' as const, depthWriteEnabled: false }
 
+/** Aircraft colour by role group: what it is doing matters more than who flies it. */
 export function aircraftColor(e: Entity): RGBA {
-  if (e.props.uav) return COLORS.uav
-  if (e.props.military) return COLORS.military
-  return COLORS.civil
+  const p = e.props
+  if (p.uav) return COLORS.uav
+  if (!p.military) return COLORS.civil
+  if (p.airframe === 'helicopter' || p.airframe === 'tiltrotor') return COLORS.rotary
+  switch (p.role) {
+    case 'isr':
+    case 'electronic':
+    case 'maritime_patrol':
+      return COLORS.isr
+    case 'tanker':
+      return COLORS.tanker
+    case 'fighter':
+    case 'strike':
+    case 'bomber':
+      return COLORS.combat
+    case 'airlift':
+    case 'vip':
+      return COLORS.airlift
+    default:
+      return COLORS.military
+  }
 }
 
 export function vesselColor(e: Entity): RGBA {
-  return e.props.sanctions?.sanctioned ? COLORS.listed : COLORS.vessel
+  if (e.props.sanctions?.sanctioned) return COLORS.listed
+  return e.props.military ? COLORS.naval_ship : COLORS.vessel
 }
 
 export function facilityColor(e: Entity): RGBA {
@@ -88,7 +118,7 @@ interface Context {
 
 export function liveLayers({ zoom, now, ui, onClick, onHover }: Context): Layer[] {
   const L = ui.layers
-  const all = [...live.entities.values()]
+  const all = [...live.entities.values()].filter((e) => visible(e, ui))
   const by = (kind: Entity['kind']) => all.filter((e) => e.kind === kind)
   const aircraft = L.aircraft ? by('aircraft') : []
   const vessels = L.vessels ? by('vessel') : []
@@ -96,6 +126,7 @@ export function liveLayers({ zoom, now, ui, onClick, onHover }: Context): Layer[
   const fires = L.fires ? by('fire') : []
   const news = L.news ? by('news') : []
   const stations = L.stations ? by('station') : []
+  const fields = airfields.all.filter((a) => (a.military ? L.airfields : L.smallFields && (a.kind === 'small_airport' || a.kind === 'heliport')))
   const altK = altitudeScale(zoom)
   // Meshes are in metres. Scale them to a legible on-screen size (~24 px aircraft, ~18 px
   // hulls at ~44°N) but never below true size; below MESH_MIN_ZOOM only dots are drawn.
@@ -108,6 +139,45 @@ export function liveLayers({ zoom, now, ui, onClick, onHover }: Context): Layer[
   }
   const common = { pickable: true, onClick, onHover }
   const layers: Layer[] = []
+
+  if (fields.length) {
+    layers.push(
+      new ScatterplotLayer<Airfield>({
+        id: 'airfields',
+        data: fields,
+        getPosition: (a) => [a.lon, a.lat],
+        getRadius: (a) => (a.military ? 4.5 : 2.5),
+        radiusUnits: 'pixels',
+        stroked: true,
+        lineWidthMinPixels: 1.5,
+        getFillColor: (a) => (a.military ? [30, 41, 59, 230] : [15, 23, 42, 160]),
+        getLineColor: (a) => (a.military ? COLORS.airfield : [100, 116, 139, 200]),
+        parameters: ON_TOP,
+        pickable: true,
+        onHover,
+      }),
+    )
+    if (zoom >= 7) {
+      layers.push(
+        new TextLayer<Airfield>({
+          id: 'airfield-labels',
+          data: fields.filter((a) => a.military || zoom >= 9),
+          getPosition: (a) => [a.lon, a.lat],
+          getText: (a) => a.name,
+          getSize: 11,
+          sizeUnits: 'pixels',
+          sizeMaxPixels: 12,
+          getColor: [203, 213, 225, 220],
+          getPixelOffset: [0, 14],
+          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+          outlineWidth: 3,
+          outlineColor: [2, 6, 12, 230],
+          fontSettings: { sdf: true },
+          parameters: { ...ON_TOP, cullMode: 'none' as const },
+        }),
+      )
+    }
+  }
 
   if (L.facilities) {
     layers.push(
@@ -247,17 +317,26 @@ export function liveLayers({ zoom, now, ui, onClick, onHover }: Context): Layer[
         getWidth: 1,
         updateTriggers: { getSourcePosition: now, getTargetPosition: now },
       }),
-      new SimpleMeshLayer<Entity>({
-        id: 'aircraft-mesh',
-        data: meshes ? aircraft : [],
-        mesh: AIRCRAFT_MESH,
-        getPosition: pos,
-        getOrientation: (e) => [0, -(e.hdg ?? 0), 0],
-        getColor: aircraftColor,
-        sizeScale: aircraftScale,
-        updateTriggers: { getPosition: now },
-        ...common,
-      }),
+      ...(
+        [
+          ['aircraft-mesh', AIRCRAFT_MESH, (e: Entity) => e.props.airframe !== 'helicopter' && !e.props.uav, 1],
+          ['helicopter-mesh', HELICOPTER_MESH, (e: Entity) => e.props.airframe === 'helicopter', 1.8],
+          ['uav-mesh', UAV_MESH, (e: Entity) => !!e.props.uav, 1.6],
+        ] as const
+      ).map(
+        ([id, mesh, keep, k]) =>
+          new SimpleMeshLayer<Entity>({
+            id,
+            data: meshes ? aircraft.filter(keep) : [],
+            mesh,
+            getPosition: pos,
+            getOrientation: (e) => [0, -(e.hdg ?? 0), 0],
+            getColor: aircraftColor,
+            sizeScale: aircraftScale * k,
+            updateTriggers: { getPosition: now },
+            ...common,
+          }),
+      ),
       new ScatterplotLayer<Entity>({
         id: 'aircraft-dots',
         data: aircraft,

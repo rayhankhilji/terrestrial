@@ -149,3 +149,48 @@ export function shipMesh() {
   m.box(0, -74, 36, 8, 6, 10) // funnel
   return m.build()
 }
+
+/** Helicopter: cabin, tail boom, fin and a thin rotor disc (as a flat cross), ~18 m. */
+export function helicopterMesh() {
+  const m = new MeshBuilder()
+  // cabin
+  m.prism(
+    [
+      [-1.6, -2],
+      [1.6, -2],
+      [1.8, 3],
+      [1, 5.5],
+      [-1, 5.5],
+      [-1.8, 3],
+    ],
+    -1.5,
+    1.5,
+  )
+  m.box(0, -7, 0.6, 0.6, 10, 0.7) // tail boom
+  m.box(0, -12, 1.6, 0.3, 1.4, 2.6) // fin
+  // main rotor: two crossed blades
+  m.box(0, 1.5, 2.3, 16, 0.5, 0.15)
+  m.box(0, 1.5, 2.3, 0.5, 16, 0.15)
+  return m.build()
+}
+
+/** Long-endurance UAV (RQ-4 / MQ-9 class): slim fuselage, straight high-aspect wing, V-tail. */
+export function uavMesh() {
+  const m = new MeshBuilder()
+  m.prism(
+    [
+      [-0.8, -7],
+      [0.8, -7],
+      [0.9, 5],
+      [0, 7],
+      [-0.9, 5],
+    ],
+    -0.6,
+    0.8,
+  )
+  m.box(9, 1, 0.5, 18, 1.6, 0.25)
+  m.box(-9, 1, 0.5, 18, 1.6, 0.25)
+  m.box(1.4, -6.4, 1.2, 2.4, 0.9, 0.2)
+  m.box(-1.4, -6.4, 1.2, 2.4, 0.9, 0.2)
+  return m.build()
+}

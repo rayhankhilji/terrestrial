@@ -32,8 +32,12 @@ export function useStore<T extends object, S>(store: Store<T>, selector: (s: T) 
 }
 
 export type Basemap = 'dark' | 'satellite'
+/** Military: the default defence picture (§16). Maritime: the dark-vessel sub-sector. */
+export type Mode = 'military' | 'maritime'
 export type LayerKey =
   | 'aircraft'
+  | 'airfields'
+  | 'smallFields'
   | 'vessels'
   | 'fires'
   | 'news'
@@ -60,6 +64,9 @@ export interface FlyTo {
 }
 
 export interface UIState {
+  mode: Mode
+  /** ISO alpha-2 codes of the states to show; empty = all */
+  states: string[]
   basemap: Basemap
   globe: boolean
   terrain: boolean
@@ -74,11 +81,15 @@ export interface UIState {
 }
 
 export const ui = createStore<UIState>({
+  mode: 'military',
+  states: [],
   basemap: 'satellite',
   globe: true,
   terrain: true,
   layers: {
     aircraft: true,
+    airfields: true,
+    smallFields: false,
     vessels: true,
     fires: true,
     news: true,
@@ -114,4 +125,8 @@ export function select(id: string | null, fly?: { lon: number; lat: number; zoom
 
 export function toggleLayer(key: LayerKey) {
   ui.set((s) => ({ layers: { ...s.layers, [key]: !s.layers[key] } }))
+}
+
+export function toggleState(code: string) {
+  ui.set((s) => ({ states: s.states.includes(code) ? s.states.filter((c) => c !== code) : [...s.states, code] }))
 }

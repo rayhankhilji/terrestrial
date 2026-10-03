@@ -1,5 +1,6 @@
 import { type Entity, live, useLive } from '../lib/live'
 import { ago, coord, describe, kindLabel, num, utc } from '../lib/format'
+import { AIRFRAME_LABELS, flagEmoji, ROLE_LABELS } from '../lib/picture'
 import { select, ui, useStore } from '../lib/store'
 import { entityColor } from '../map/liveLayers'
 import { ForecastChart } from './ForecastChart'
@@ -30,7 +31,11 @@ function facts(e: Entity): [string, string][] {
   ]
   if (e.kind === 'aircraft') {
     rows.push(
-      ['Callsign', p.callsign ?? '—'],
+      ['State', p.state ? `${flagEmoji(p.state_code)} ${p.state}` : '—'],
+      ['Organisation', p.org ?? '—'],
+      ['Role', `${ROLE_LABELS[p.role] ?? p.role ?? '—'}${p.designation ? ` (${p.designation})` : ''}`],
+      ['Airframe', AIRFRAME_LABELS[p.airframe] ?? p.airframe ?? '—'],
+      ['Callsign', p.callsign ? `${p.callsign}${p.callsign_family ? ` · family ${p.callsign_family}` : ''}` : '—'],
       ['Registration', p.registration ?? '—'],
       ['ICAO type', p.type ?? '—'],
       ['ICAO 24-bit', String(p.icao24).toUpperCase()],
@@ -43,6 +48,8 @@ function facts(e: Entity): [string, string][] {
   }
   if (e.kind === 'vessel') {
     rows.push(
+      ['Flag (MMSI)', p.state ? `${flagEmoji(p.state_code)} ${p.state}` : '—'],
+      ...(p.military ? ([['Naval role', p.naval_role === 'law_enforcement' ? 'law enforcement' : 'warship']] as [string, string][]) : []),
       ['MMSI', p.mmsi],
       ['IMO', p.imo ?? '—'],
       ['Type', p.ship_type ?? '—'],
@@ -114,6 +121,17 @@ export function Inspector() {
             {e.props.sanctions.name}: {e.props.sanctions.topics.join(', ')}
           </div>
           <div className="muted small">{e.props.sanctions.datasets.join(' · ')}</div>
+        </section>
+      )}
+
+      {e.props.mil_evidence?.length > 0 && (
+        <section>
+          <h3>Why it is classed military</h3>
+          <ul className="evidence">
+            {e.props.mil_evidence.map((x: string) => (
+              <li key={x}>{x}</li>
+            ))}
+          </ul>
         </section>
       )}
 

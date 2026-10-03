@@ -22,6 +22,7 @@ import numpy as np
 
 from live.hub import Hub, now_ms
 from pipeline import aoi as aois
+from pipeline.config import THEATRE_BBOX
 
 FIRE_KM = 5.0
 NEWS_KM = 12.0
@@ -210,6 +211,10 @@ class Correlator:
         p = e["props"]
         if not (p.get("military") or p.get("uav")):
             return
+        # The air picture covers all of Europe (§16); alert only on the Ukraine / Black Sea theatre.
+        min_lon, min_lat, max_lon, max_lat = THEATRE_BBOX
+        if not (min_lon <= e["lon"] <= max_lon and min_lat <= e["lat"] <= max_lat):
+            return
         what = "Unmanned aircraft" if p.get("uav") else "Military aircraft"
         self._alert_once(
             hub,
@@ -218,7 +223,7 @@ class Correlator:
             {
                 "severity": "info" if not p.get("uav") else "warn",
                 "title": f"{what} in theatre: {e['label']}",
-                "body": f"Type {p.get('type') or 'unknown'}, {round((e.get('alt') or 0) / 0.3048):,} ft, {e.get('spd') or '?'} kn (public ADS-B).",
+                "body": f"{p.get('state') or 'Unattributed'} · {p.get('role') or 'role unknown'} · type {p.get('type') or 'unknown'}, {round((e.get('alt') or 0) / 0.3048):,} ft, {e.get('spd') or '?'} kn (public ADS-B).",
                 "entities": [e["id"]],
                 "lon": e["lon"],
                 "lat": e["lat"],

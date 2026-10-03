@@ -145,6 +145,12 @@ def featherless_model() -> str:
 LIVE_DIR = DATA_DIR / "live"  # recordings for replay
 # Wider "theatre" box for live air picture and news: Black Sea, Ukraine, south-west Russia.
 THEATRE_BBOX: tuple[float, float, float, float] = (22.0, 40.0, 45.0, 53.0)
+# Military picture (§16): Europe, the Black Sea and the eastern Mediterranean. The /mil ADS-B
+# feeds are global and small, so the wider box costs nothing and keeps NATO ISR/tanker tracks
+# from the UK, Baltic and Mediterranean in view.
+MIL_BBOX: tuple[float, float, float, float] = (-12.0, 30.0, 60.0, 72.0)
+REFERENCE_DIR = RAW_DIR / "reference"
+REFERENCE_MAX_AGE_DAYS = 7
 
 
 def optional_key(name: str) -> str | None:

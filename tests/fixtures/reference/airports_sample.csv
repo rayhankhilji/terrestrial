@@ -1,0 +1,9 @@
+id,ident,type,name,latitude_deg,longitude_deg,elevation_ft,continent,iso_country,iso_region,municipality,scheduled_service,icao_code,iata_code,gps_code,local_code,home_link,wikipedia_link,keywords
+2385,EGAA,large_airport,Belfast International Airport,54.6575012207,-6.2158298492399995,268,EU,GB,GB-NIR,Belfast,yes,EGAA,BFS,EGAA,,http://www.belfastairport.com/,https://en.wikipedia.org/wiki/Belfast_International_Airport,"Aldergrove, RAF Aldergrove"
+2434,EGLL,large_airport,London Heathrow Airport,51.470748,-0.459909,83,EU,GB,GB-ENG,London,yes,EGLL,LHR,EGLL,,http://www.heathrow.com/,https://en.wikipedia.org/wiki/Heathrow_Airport,"LON, Londres"
+2486,EGUB,medium_airport,RAF Benson,51.614366,-1.095991,226,EU,GB,GB-ENG,"Wallingford, Oxfordshire",no,EGUB,BEX,EGUB,,,https://en.wikipedia.org/wiki/RAF_Benson,Benson
+307575,GB-0072,small_airport,Hibaldstow Airfield,53.495814,-0.516922,30,EU,GB,GB-ENG,"Brigg, Lincolnshire",no,,,,,,,RAF Hibaldstow
+4482,LROP,large_airport,Bucharest Henri Coandă International Airport,44.571792,26.103285,314,EU,RO,RO-IF,Otopeni,yes,LROP,OTP,LROP,,http://www.bucharestairports.ro/en/,https://en.wikipedia.org/wiki/Henri_Coand%C4%83_International_Airport,"BUH, Otopeni Airport, RoAF 90th Airlift Base"
+46088,RU-10078,small_airport,Morozovsk Air Base,48.313,41.791,400,EU,RU,RU-ROS,Morozovsk,no,,,URRM,XRRM,,https://en.wikipedia.org/wiki/Morozovsk_(air_base),"Аэродром Морозовск, ЬРРМ, УРРМ"
+44293,UKFB,medium_airport,Sevastopol International Airport / Belbek Air Base,44.691822,33.57462,344,EU,UA,UA-43,Sevastopol,no,UKFB,UKS,UKFB,,,https://en.wikipedia.org/wiki/Sevastopol_International_Airport,"Севастополь, Бельбек"
+44296,UKFI,medium_airport,Saky Air Base,45.090611,33.598536,36,EU,UA,UA-43,Novofedorivka,no,,,UKFI,,,https://en.wikipedia.org/wiki/Saky_(air_base),"Аэродом Саки, URFI"

@@ -507,6 +507,19 @@ button.close {
   gap: 4px;
   font-size: 0.84rem;
   z-index: 3;
+  width: 340px;
+  max-height: calc(100% - 28px);
+  overflow-y: auto;
+}
+.layer-control summary {
+  cursor: pointer;
+  list-style: none;
+}
+.layer-control summary::before {
+  content: '▾ ';
+}
+.layer-control:not([open]) summary::before {
+  content: '▸ ';
 }
 .lc-title {
   font-size: 0.7rem;
@@ -940,4 +953,69 @@ button.close {
   .brand-sub {
     display: none;
   }
+}
+
+/* ---- military picture ------------------------------------------------------------------ */
+
+.mode-switch {
+  display: inline-flex;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  padding: 3px;
+  flex: none;
+}
+.mode-switch button {
+  border: 0;
+  background: transparent;
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  cursor: pointer;
+}
+.mode-switch button.on {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 8px;
+}
+.chip {
+  border: 1px solid var(--line-strong);
+  background: var(--raise);
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+.chip.on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.chip .mono {
+  color: var(--muted);
+  margin-left: 2px;
+}
+button.link {
+  border: 0;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 0.78rem;
+  margin-left: 8px;
+  padding: 0;
+}
+.evidence {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.evidence li {
+  margin: 2px 0;
 }

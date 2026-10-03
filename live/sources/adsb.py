@@ -1,4 +1,7 @@
-"""Live air picture from open ADS-B aggregators (no key): adsb.fi and adsb.lol.
+"""Live military air picture from open ADS-B aggregators (no key): adsb.fi and adsb.lol.
+
+Only military aircraft are kept (CLAUDE.md §16.1): every record is classified by
+live/milclass.py at ingest and civil traffic is dropped there, so it never reaches the hub.
 
 adsb.fi tolerates ~1 request/s, so it is polled round-robin every ADSB_FI_INTERVAL_S over two
 250 nm circles covering the Black Sea plus its military feed. adsb.lol rate-limits harder and
@@ -16,7 +19,8 @@ import time
 import httpx
 
 from live.hub import Hub
-from pipeline.config import THEATRE_BBOX
+from live.milclass import Classification, MilClassifier
+from pipeline.config import MIL_BBOX
 
 log = logging.getLogger("terrestrial.live")
 
@@ -30,26 +34,22 @@ ADSB_LOL_INTERVAL_S = 20.0
 MAX_SEEN_S = 60
 FT_TO_M = 0.3048
 
-# ICAO type designators for unmanned aircraft seen on ADS-B (RQ-4, MQ-9, MQ-1C, MQ-4C, TB2, Heron…).
-UAV_TYPES = {"Q4", "Q9", "Q1", "Q25", "MQ9", "RQ4", "Q4C", "TB2", "TB3", "HRON", "H450", "AKN"}
 
-
-def _in_theatre(lat: float, lon: float) -> bool:
-    min_lon, min_lat, max_lon, max_lat = THEATRE_BBOX
+def _in_area(lat: float, lon: float) -> bool:
+    min_lon, min_lat, max_lon, max_lat = MIL_BBOX
     return min_lat <= lat <= max_lat and min_lon <= lon <= max_lon
 
 
-def to_entity(ac: dict, received_at: float, military_feed: bool) -> dict | None:
+def to_entity(ac: dict, received_at: float, mil: Classification) -> dict | None:
+    """Hub entity for a military aircraft; None for civil traffic or records without a position."""
     lat, lon = ac.get("lat"), ac.get("lon")
-    if lat is None or lon is None or not ac.get("hex"):
+    if not mil.military or lat is None or lon is None or not ac.get("hex"):
         return None
     alt_baro = ac.get("alt_baro")
     on_ground = alt_baro == "ground"
     alt_ft = ac.get("alt_geom") if isinstance(ac.get("alt_geom"), (int, float)) else alt_baro
     alt_m = 0.0 if on_ground or not isinstance(alt_ft, (int, float)) else alt_ft * FT_TO_M
-    military = bool((ac.get("dbFlags") or 0) & 1) or military_feed
     type_code = (ac.get("t") or "").upper()
-    uav = type_code in UAV_TYPES or ac.get("category") == "B6"
     callsign = (ac.get("flight") or "").strip()
     seen = float(ac.get("seen_pos") or 0.0)
     return {
@@ -69,18 +69,20 @@ def to_entity(ac: dict, received_at: float, military_feed: bool) -> dict | None:
             "callsign": callsign or None,
             "registration": ac.get("r"),
             "type": type_code or None,
-            "military": military,
-            "uav": uav,
+            **mil.as_props(),
             "on_ground": on_ground,
             "squawk": ac.get("squawk"),
             "emergency": ac.get("emergency") if ac.get("emergency") not in (None, "none") else None,
             "vrate_fpm": ac.get("baro_rate") or ac.get("geom_rate"),
+            # Position integrity (NIC) and accuracy (NACp): inputs to GPS-interference detection.
+            "nic": ac.get("nic"),
+            "nac_p": ac.get("nac_p"),
         },
     }
 
 
 async def _poll(
-    hub: Hub, http: httpx.AsyncClient, source: str, url: str, military: bool, theatre_only: bool
+    hub: Hub, http: httpx.AsyncClient, classify: MilClassifier, source: str, url: str, military: bool
 ) -> int:
     response = await http.get(url)
     response.raise_for_status()
@@ -91,8 +93,8 @@ async def _poll(
     for ac in body.get("ac") or body.get("aircraft") or []:
         if float(ac.get("seen_pos") or 0) > MAX_SEEN_S:
             continue
-        entity = to_entity(ac, received_at, military)
-        if entity is None or (theatre_only and not _in_theatre(entity["lat"], entity["lon"])):
+        entity = to_entity(ac, received_at, classify(ac, military))
+        if entity is None or not _in_area(entity["lat"], entity["lon"]):
             continue
         entity["src"] = source
         hub.upsert(entity)
@@ -101,19 +103,24 @@ async def _poll(
 
 
 async def _schedule(
-    hub: Hub, http: httpx.AsyncClient, name: str, requests: list[tuple[str, bool, bool]], interval_s: float
+    hub: Hub,
+    http: httpx.AsyncClient,
+    classify: MilClassifier,
+    name: str,
+    requests: list[tuple[str, bool]],
+    interval_s: float,
 ) -> None:
-    """Round-robin over `requests` (url, military, theatre_only), one request per interval."""
+    """Round-robin over `requests` (url, military-only feed), one request per interval."""
     hub.source(name)
     backoff = 0.0
     i = 0
     while True:
         started = time.monotonic()
-        url, military, theatre_only = requests[i % len(requests)]
+        url, military = requests[i % len(requests)]
         try:
-            n = await _poll(hub, http, name, url, military, theatre_only)
+            n = await _poll(hub, http, classify, name, url, military)
             hub.source_ok(
-                name, f"{n} aircraft in last response ({'military, theatre' if military else 'Black Sea'})"
+                name, f"{n} military aircraft in last response ({'mil feed' if military else 'Black Sea'})"
             )
             backoff = 0.0
             i += 1
@@ -126,10 +133,15 @@ async def _schedule(
 
 
 async def run(hub: Hub) -> None:
+    hub.source("adsb.fi")
+    hub.source("adsb.lol")
+    classify = await asyncio.to_thread(MilClassifier.load)
     async with httpx.AsyncClient(timeout=10.0, headers={"User-Agent": USER_AGENT}) as http:
-        fi = [(f"{ADSB_FI}/lat/{lat}/lon/{lon}/dist/{r}", False, False) for lat, lon, r in POINTS]
-        fi.append((f"{ADSB_FI}/mil", True, True))
+        # The point queries return all traffic; they catch military airframes that the /mil
+        # feeds miss (e.g. register-only matches). Civil records are dropped at ingest.
+        fi = [(f"{ADSB_FI}/lat/{lat}/lon/{lon}/dist/{r}", False) for lat, lon, r in POINTS]
+        fi.append((f"{ADSB_FI}/mil", True))
         await asyncio.gather(
-            _schedule(hub, http, "adsb.fi", fi, ADSB_FI_INTERVAL_S),
-            _schedule(hub, http, "adsb.lol", [(f"{ADSB_LOL}/mil", True, True)], ADSB_LOL_INTERVAL_S),
+            _schedule(hub, http, classify, "adsb.fi", fi, ADSB_FI_INTERVAL_S),
+            _schedule(hub, http, classify, "adsb.lol", [(f"{ADSB_LOL}/mil", True)], ADSB_LOL_INTERVAL_S),
         )
