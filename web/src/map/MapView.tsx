@@ -23,6 +23,7 @@ export function registerLayers(provider: LayerProvider) {
   }
 }
 
+const FRAME_MS = 1000 / 30
 const START = { center: [34.2, 44.4] as [number, number], zoom: 4.6, pitch: 35, bearing: -8 }
 
 export default function MapView() {
@@ -97,14 +98,19 @@ export default function MapView() {
       } finally {
         map.isStyleLoaded = isStyleLoaded
       }
-      const frame = () => {
+      // Redraw at most ~30 fps (dead reckoning and pings stay smooth; laptops stay cool) and not
+      // at all while the tab is hidden.
+      let last = 0
+      const frame = (t: number) => {
+        raf = requestAnimationFrame(frame)
+        if (document.hidden || t - last < FRAME_MS) return
+        last = t
         overlay.setProps({ layers: build() })
         const s = ui.get()
         if (s.follow && s.selected) {
           const e = live.entities.get(s.selected)
           if (e && !map.isMoving()) map.easeTo({ center: [e.lon, e.lat], duration: 400 })
         }
-        raf = requestAnimationFrame(frame)
       }
       raf = requestAnimationFrame(frame)
     })

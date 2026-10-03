@@ -15,7 +15,13 @@ import numpy as np
 from pyproj import CRS, Transformer
 from shapely.geometry import Polygon
 
+import logging
+from datetime import date
+
+import pandas as pd
+
 from pipeline import geo
+from pipeline.io import read_table, write_table
 from pipeline.config import (
     ELLIPSE_POINTS,
     IMPOSSIBLE_RADIUS_KM,
@@ -116,3 +122,42 @@ def reachability_ellipse(
         focal_half_km=c,
         impossible=False,
     )
+
+
+log = logging.getLogger("terrestrial")
+
+
+def envelopes(gaps: pd.DataFrame, vessels: pd.DataFrame) -> pd.DataFrame:
+    """One reachability envelope per closed gap."""
+    vessel_type = vessels.set_index("vessel_id")["vessel_type"].to_dict()
+    rows = []
+    for g in gaps.itertuples(index=False):
+        vtype = vessel_type.get(g.vessel_id)
+        env = reachability_ellipse(g.off_lon, g.off_lat, g.on_lon, g.on_lat, g.duration_h, vmax_for(vtype))
+        rows.append(
+            {
+                "gap_id": g.gap_id,
+                "vessel_id": g.vessel_id,
+                "polygon_wkt": env.polygon.wkt,
+                "vmax_kn": env.vmax_kn,
+                "speed_class": vessel_class(vtype),
+                "max_distance_km": env.max_distance_km,
+                "semi_major_km": env.semi_major_km,
+                "semi_minor_km": env.semi_minor_km,
+                "focal_half_km": env.focal_half_km,
+                "area_km2": math.pi * env.semi_major_km * env.semi_minor_km
+                if not env.impossible
+                else math.pi * IMPOSSIBLE_RADIUS_KM**2,
+                "impossible": env.impossible,
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def stage(start: date, end: date, args) -> None:
+    gaps = read_table("gaps")
+    closed = gaps[~gaps["open"]]
+    log.info("  in: %d gaps (%d closed)", len(gaps), len(closed))
+    out = envelopes(closed, read_table("vessels"))
+    write_table(out, "gap_envelopes")
+    log.info("  %d impossible gaps (could not cover A→B at max speed)", int(out["impossible"].sum()))
