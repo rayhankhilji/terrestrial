@@ -11,6 +11,9 @@ graph-up:         ## start the TuringDB server (REST :6666, visualiser :8080)
 graph-down:       ## stop the TuringDB server
 	docker compose down
 
+history:  ## fetch and normalise 2022→now history for the predictive layer
+	uv run python -m history.run
+
 pipeline:         ## full pipeline including the graph layer
 	uv run python -m pipeline.run
 

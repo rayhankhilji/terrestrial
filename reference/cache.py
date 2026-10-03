@@ -15,13 +15,19 @@ log = logging.getLogger("terrestrial")
 USER_AGENT = "terrestrial/0.2 (+https://github.com/rayhankhilji/terrestrial)"
 
 
-def cached(url: str, name: str, refresh: bool = False, max_age_days: float = REFERENCE_MAX_AGE_DAYS) -> Path:
+def cached(
+    url: str,
+    name: str,
+    refresh: bool = False,
+    max_age_days: float = REFERENCE_MAX_AGE_DAYS,
+    base: Path = REFERENCE_DIR,
+) -> Path:
     """Path of a local copy of `url`, downloading it if missing, stale or `refresh` is set.
 
     A failed refresh of a file we already have keeps the old copy and logs a warning; a failed
     first download raises (there is nothing to fall back to).
     """
-    path = REFERENCE_DIR / name
+    path = base / name
     fresh = path.exists() and (time.time() - path.stat().st_mtime) < max_age_days * 86400
     if fresh and not refresh:
         return path

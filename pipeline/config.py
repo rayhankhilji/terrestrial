@@ -150,6 +150,8 @@ THEATRE_BBOX: tuple[float, float, float, float] = (22.0, 40.0, 45.0, 53.0)
 # from the UK, Baltic and Mediterranean in view.
 MIL_BBOX: tuple[float, float, float, float] = (-12.0, 30.0, 60.0, 72.0)
 REFERENCE_DIR = RAW_DIR / "reference"
+HISTORY_DIR = DATA_DIR / "history"  # normalised historical tables (predictive layer, §16.4)
+MODELS_DIR = DATA_DIR / "models"
 REFERENCE_MAX_AGE_DAYS = 7
 
 

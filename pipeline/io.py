@@ -23,22 +23,24 @@ class EmptyStageOutput(RuntimeError):
     pass
 
 
-def table_path(name: str) -> Path:
-    return PROCESSED_DIR / f"{name}.parquet"
+def table_path(name: str, directory: Path = PROCESSED_DIR) -> Path:
+    return directory / f"{name}.parquet"
 
 
-def write_table(df: pd.DataFrame, name: str, *, required: bool = True) -> Path:
+def write_table(
+    df: pd.DataFrame, name: str, *, required: bool = True, directory: Path = PROCESSED_DIR
+) -> Path:
     if required and df.empty:
         raise EmptyStageOutput(f"{name}: produced 0 rows where data was expected")
-    path = table_path(name)
+    path = table_path(name, directory)
     path.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(path, index=False)
     log.info("  wrote %-22s %7d rows", name, len(df))
     return path
 
 
-def read_table(name: str) -> pd.DataFrame:
-    path = table_path(name)
+def read_table(name: str, directory: Path = PROCESSED_DIR) -> pd.DataFrame:
+    path = table_path(name, directory)
     if not path.exists():
         raise FileNotFoundError(f"{path} is missing; run the pipeline stage that produces it")
     return pd.read_parquet(path)

@@ -15,3 +15,7 @@ saved from the live source. Nothing is hand-written.
 | `reference/mids.json` | michaeljfazio/MIDs `mids.json` (ITU Maritime Identification Digits) | Apache-2.0 |
 | `reference/airports_sample.csv` | Verbatim rows of OurAirports `airports.csv` (Saky, Belbek, RAF Benson, Belfast Intl, Heathrow…) | Public domain |
 | `live/wikidata_facilities_subset.json` | Rows from the cached Wikidata SPARQL result for theatre facilities (Black Sea ports, refineries, bases) | CC0, Wikidata |
+| `history/sirens_volunteer_sample.csv` | 12 verbatim lines per region of Vadimkin/ukrainian-air-raid-sirens-dataset `volunteer_data_en.csv` | Dataset licence (MIT), © Vadym Klymenko |
+| `history/viina_1pd_2024_sample.csv`, `history/viina_1pd_2026_sample.csv` | 150 verbatim lines each of VIINA 2.0 `event_1pd_latest_{year}` (2024 has missing UAV labels) | VIINA 2.0, Zhukov & Ayers (2023), cite on use |
+| `history/ukr_adm1_simplified.geojson` | geoBoundaries gbOpen UKR ADM1 simplified boundaries | CC BY 4.0, wmgeolab |
+| `history/openmeteo_archive_sample.json` | Open-Meteo archive response, Kyiv and Kharkiv, 20–22 Sep 2026, daily cloud/precip/wind | CC BY 4.0, Open-Meteo |
