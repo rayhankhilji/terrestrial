@@ -1,8 +1,8 @@
 # TERRESTRIAL — Black Sea dark-vessel detection (EDTH London, Challenge 1)
 
 This file is the single source of truth for the build. Read all of it before writing code.
-§15 records decisions taken after the original brief; where §15 conflicts with an earlier
-section, §15 wins.
+§15 and §16 record decisions taken after the original brief; where they conflict with an
+earlier section, the later section wins (§16 > §15 > §1–14).
 
 ## 1. What we're building
 
@@ -284,3 +284,46 @@ Entity types follow the FollowTheMoney (FtM) vocabulary used by OpenSanctions wh
 - **Occupied-port calls (N days)**: per vessel, the union of (a) AIS port visits in occupied AOIs, (b) probable covert port calls (time-consistent SAR candidates in occupied AOIs), (c) gaps starting/ending within 50 km of occupied AOIs — each tagged observed/inferred.
 - **Highlights**: deterministic, ranked findings computed from the tables, each with evidence refs.
 - **Predictions** (model estimates, labelled as such): for vessels whose latest gap is still open, the reachable area now (clipped to sea) and a likelihood over AOIs from reachability and the vessel's own history; per-vessel risk trend over the window; dark-activity density surface.
+
+## 16. Terrestrial v2: military picture and predictive engine
+
+The product was redirected (Oct 2026): a predictive defence picture in support of Ukraine.
+Dark vessels (§1–15) remain as the **Maritime** sub-sector, one mode of the same app.
+
+### 16.1 Scope
+- The globe shows **military only**: military aircraft, helicopters, UAVs, naval and law-enforcement
+  vessels, military airfields and naval/submarine bases. Civil traffic is dropped at ingest.
+- **Nets**: shared-mission groups of military entities, inferred from co-movement, rendezvous,
+  callsign families and common origin; filterable by state / organisation; several per state.
+- **Flight history and prediction**: full observed path per craft, a continuously re-routed
+  forecast to landing with destination probabilities, ETA and an endurance estimate.
+- **Threat ranking** of craft (transparent breakdown, heuristic weights in config) and a
+  **strike-risk / danger-zone model** trained on 2022–2026 history.
+- Model training is now in scope (supersedes the §2 non-goal). Models are small, tabular,
+  calibrated and evaluated against baselines; each ships a model card shown in the UI.
+
+### 16.2 Observability limits (state them in the UI; never fill the gaps with invented data)
+- Russian military aircraft essentially never broadcast ADS-B. Russian air operations enter the
+  system through Ukrainian Air Force launch reports (missile-attack dataset), air-raid alerts and
+  news-derived events, not through tracks.
+- Submarines are never plotted as positions; only their bases.
+- Fuel is never observed; endurance is a type-level estimate, labelled as such.
+- A carrier is a landing candidate only if it is an observed live entity.
+- The live air picture is "aircraft that broadcast", mostly NATO and partner ISR, tankers, airlift.
+
+### 16.3 AI
+- **Jev** (TypeSafe AI, `POST https://api.typesafe.ai/v1/systemone`, `TYPESAFE_API_KEY`,
+  model `jev-latest`) is the fast decision layer: typed questions (noul / choice / score) over
+  state we prepare. Code computes every number; Jev only judges (it is weak at arithmetic and
+  dates). Uses: news → structured signals, free-text parsing of datasets, net mission labels,
+  borderline net edges, alert triage, gated destination re-ranking, maritime entity resolution.
+- **Featherless** (open-weight LLM) writes prose (SITREPs, briefs) citing fact ids, validated as §15.4.
+- The live server may call AI at runtime only through `live/ai.py`: input-hash cache, per-minute
+  budget, every answer stored with its probability/confidence and model as provenance.
+
+### 16.4 Training data and models
+- Train/serve parity: a model feature is allowed only if it is available live with the same lag.
+- Time-split validation only (no random splits); report Brier skill / AUC (strike) and top-k
+  accuracy (destination) against simple baselines; if a model does not beat them, the UI says so.
+- Historical sources are fetched by `history/` into `data/raw/history/` and normalised to
+  `data/history/`; each is tested on a small saved real sample.
