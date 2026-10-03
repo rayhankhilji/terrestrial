@@ -1,0 +1,428 @@
+import type { Layer, PickingInfo } from '@deck.gl/core'
+import { PathStyleExtension, type PathStyleExtensionProps } from '@deck.gl/extensions'
+import { LineLayer, PathLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers'
+import { SimpleMeshLayer } from '@deck.gl/mesh-layers'
+import { ahead, type Entity, live, projected } from '../lib/live'
+import type { UIState } from '../lib/store'
+import { aircraftMesh, shipMesh } from './meshes'
+
+export type RGBA = [number, number, number, number]
+
+export const COLORS = {
+  civil: [147, 197, 253, 255] as RGBA,
+  military: [251, 191, 36, 255] as RGBA,
+  uav: [244, 114, 182, 255] as RGBA,
+  vessel: [94, 234, 212, 255] as RGBA,
+  listed: [244, 63, 94, 255] as RGBA,
+  fire: [255, 122, 48, 255] as RGBA,
+  news: [167, 139, 250, 255] as RGBA,
+  station: [226, 232, 240, 255] as RGBA,
+  port: [148, 163, 184, 255] as RGBA,
+  refinery: [250, 204, 21, 255] as RGBA,
+  airbase: [96, 165, 250, 255] as RGBA,
+  naval: [56, 189, 248, 255] as RGBA,
+  selected: [255, 255, 255, 255] as RGBA,
+}
+
+const AIRCRAFT_MESH = aircraftMesh()
+const SHIP_MESH = shipMesh()
+const PING_MS = 1600
+const MESH_MIN_ZOOM = 5.5
+const ALERT_RIPPLE_MS = 12000
+const DASH = new PathStyleExtension({ dash: true })
+const ON_TOP = { depthCompare: 'always' as const, depthWriteEnabled: false }
+
+export function aircraftColor(e: Entity): RGBA {
+  if (e.props.uav) return COLORS.uav
+  if (e.props.military) return COLORS.military
+  return COLORS.civil
+}
+
+export function vesselColor(e: Entity): RGBA {
+  return e.props.sanctions?.sanctioned ? COLORS.listed : COLORS.vessel
+}
+
+export function facilityColor(e: Entity): RGBA {
+  const t = e.props.type
+  if (t === 'refinery') return COLORS.refinery
+  if (t === 'airbase') return COLORS.airbase
+  if (t === 'naval base') return COLORS.naval
+  return COLORS.port
+}
+
+export function entityColor(e: Entity): RGBA {
+  switch (e.kind) {
+    case 'aircraft':
+      return aircraftColor(e)
+    case 'vessel':
+      return vesselColor(e)
+    case 'fire':
+      return COLORS.fire
+    case 'news':
+      return COLORS.news
+    case 'facility':
+      return facilityColor(e)
+    default:
+      return COLORS.station
+  }
+}
+
+const RELATION_COLORS: Record<string, RGBA> = {
+  THERMAL_ANOMALY_AT: [255, 122, 48, 220],
+  REPORTED_AT: [167, 139, 250, 200],
+  PRESENT_IN_AOI: [244, 63, 94, 220],
+}
+
+/** Exaggerate aircraft altitude when zoomed out so the 3D picture stays legible. */
+export function altitudeScale(zoom: number) {
+  return Math.min(8, Math.max(1, 2 ** (8 - zoom)))
+}
+
+interface Context {
+  zoom: number
+  now: number
+  ui: UIState
+  onClick: (info: PickingInfo) => void
+  onHover: (info: PickingInfo) => void
+}
+
+export function liveLayers({ zoom, now, ui, onClick, onHover }: Context): Layer[] {
+  const L = ui.layers
+  const all = [...live.entities.values()]
+  const by = (kind: Entity['kind']) => all.filter((e) => e.kind === kind)
+  const aircraft = L.aircraft ? by('aircraft') : []
+  const vessels = L.vessels ? by('vessel') : []
+  const facilities = L.facilities ? by('facility') : []
+  const fires = L.fires ? by('fire') : []
+  const news = L.news ? by('news') : []
+  const stations = L.stations ? by('station') : []
+  const altK = altitudeScale(zoom)
+  // Meshes are in metres. Scale them to a legible on-screen size (~24 px aircraft, ~18 px
+  // hulls at ~44°N) but never below true size; below MESH_MIN_ZOOM only dots are drawn.
+  const aircraftScale = Math.max(1, 67600 / 2 ** zoom)
+  const shipScale = Math.max(1, 11270 / 2 ** zoom)
+  const meshes = zoom >= MESH_MIN_ZOOM
+  const pos = (e: Entity): [number, number, number] => {
+    const [lon, lat] = projected(e, now)
+    return [lon, lat, (e.alt ?? 0) * altK]
+  }
+  const common = { pickable: true, onClick, onHover }
+  const layers: Layer[] = []
+
+  if (L.facilities) {
+    layers.push(
+      new ScatterplotLayer<Entity>({
+        id: 'facilities',
+        data: facilities,
+        getPosition: (e) => [e.lon, e.lat],
+        getRadius: 2500,
+        radiusMinPixels: 3.5,
+        radiusMaxPixels: 9,
+        stroked: true,
+        lineWidthMinPixels: 1.5,
+        getFillColor: [8, 12, 20, 200],
+        getLineColor: (e) => facilityColor(e),
+        parameters: ON_TOP,
+        ...common,
+      }),
+    )
+  }
+
+  if (L.stations) {
+    layers.push(
+      new ScatterplotLayer<Entity>({
+        id: 'stations',
+        data: stations,
+        getPosition: (e) => [e.lon, e.lat],
+        getRadius: 15000,
+        radiusMinPixels: 6,
+        stroked: true,
+        filled: false,
+        lineWidthMinPixels: 1,
+        getLineColor: (e) => (e.props.occupied_ua ? [244, 63, 94, 160] : [226, 232, 240, 110]),
+        parameters: ON_TOP,
+        ...common,
+      }),
+    )
+  }
+
+  if (L.relations) {
+    const rels = [...live.relations.values()].filter((r) => live.entities.has(r.a) && live.entities.has(r.b))
+    layers.push(
+      new LineLayer({
+        id: 'relations',
+        data: rels,
+        getSourcePosition: (r) => {
+          const e = live.entities.get(r.a)!
+          return [e.lon, e.lat]
+        },
+        getTargetPosition: (r) => {
+          const e = live.entities.get(r.b)!
+          return [e.lon, e.lat]
+        },
+        getColor: (r) => RELATION_COLORS[r.rel] ?? [255, 255, 255, 160],
+        getWidth: 2,
+        widthMinPixels: 1.5,
+        parameters: ON_TOP,
+      }),
+    )
+  }
+
+  if (fires.length) {
+    layers.push(
+      new ScatterplotLayer<Entity>({
+        id: 'fires-glow',
+        data: fires,
+        getPosition: (e) => [e.lon, e.lat],
+        getRadius: (e) => 1500 + 60 * Math.sqrt(e.props.frp_mw ?? 1) * 100,
+        radiusMinPixels: 6,
+        getFillColor: [255, 122, 48, 60],
+        parameters: ON_TOP,
+      }),
+      new ScatterplotLayer<Entity>({
+        id: 'fires',
+        data: fires,
+        getPosition: (e) => [e.lon, e.lat],
+        getRadius: 600,
+        radiusMinPixels: 2.5,
+        getFillColor: COLORS.fire,
+        parameters: ON_TOP,
+        ...common,
+      }),
+    )
+  }
+
+  if (news.length) {
+    layers.push(
+      new ScatterplotLayer<Entity>({
+        id: 'news',
+        data: news,
+        getPosition: (e) => [e.lon, e.lat],
+        getRadius: 4000,
+        radiusMinPixels: 4,
+        stroked: true,
+        lineWidthMinPixels: 1.5,
+        getFillColor: [167, 139, 250, 90],
+        getLineColor: COLORS.news,
+        parameters: ON_TOP,
+        ...common,
+      }),
+    )
+  }
+
+  if (L.trails) {
+    const trails = [...aircraft, ...vessels]
+      .map((e) => ({ e, path: live.trails.get(e.id) }))
+      .filter((t): t is { e: Entity; path: [number, number, number][] } => !!t.path && t.path.length > 1)
+    layers.push(
+      new PathLayer<{ e: Entity; path: [number, number, number][] }>({
+        id: 'trails',
+        data: trails,
+        getPath: (t) => t.path.map(([lon, lat, alt]) => [lon, lat, alt * altK] as [number, number, number]),
+        getColor: (t) => {
+          const c = entityColor(t.e)
+          return [c[0], c[1], c[2], 110]
+        },
+        getWidth: 2,
+        widthMinPixels: 1.2,
+        updateTriggers: { getPath: altK },
+      }),
+    )
+  }
+
+  if (aircraft.length) {
+    const airborne = aircraft.filter((e) => (e.alt ?? 0) > 50)
+    layers.push(
+      new LineLayer<Entity>({
+        id: 'aircraft-stalks',
+        data: airborne,
+        getSourcePosition: (e) => {
+          const p = pos(e)
+          return [p[0], p[1], 0]
+        },
+        getTargetPosition: pos,
+        getColor: (e) => {
+          const c = aircraftColor(e)
+          return [c[0], c[1], c[2], 70]
+        },
+        getWidth: 1,
+        updateTriggers: { getSourcePosition: now, getTargetPosition: now },
+      }),
+      new SimpleMeshLayer<Entity>({
+        id: 'aircraft-mesh',
+        data: meshes ? aircraft : [],
+        mesh: AIRCRAFT_MESH,
+        getPosition: pos,
+        getOrientation: (e) => [0, -(e.hdg ?? 0), 0],
+        getColor: aircraftColor,
+        sizeScale: aircraftScale,
+        updateTriggers: { getPosition: now },
+        ...common,
+      }),
+      new ScatterplotLayer<Entity>({
+        id: 'aircraft-dots',
+        data: aircraft,
+        getPosition: pos,
+        getRadius: 10,
+        radiusMinPixels: meshes ? 1.5 : 3,
+        radiusMaxPixels: meshes ? 2 : 4,
+        getFillColor: aircraftColor,
+        updateTriggers: { getPosition: now },
+        ...common,
+      }),
+    )
+  }
+
+  if (vessels.length) {
+    layers.push(
+      new SimpleMeshLayer<Entity>({
+        id: 'vessel-mesh',
+        data: meshes ? vessels : [],
+        mesh: SHIP_MESH,
+        getPosition: (e) => [e.lon, e.lat, 0],
+        getOrientation: (e) => [0, -(e.hdg ?? 0), 0],
+        getColor: vesselColor,
+        sizeScale: shipScale,
+        ...common,
+      }),
+      new ScatterplotLayer<Entity>({
+        id: 'vessel-dots',
+        data: vessels,
+        getPosition: (e) => [e.lon, e.lat],
+        getRadius: 10,
+        radiusMinPixels: 2.5,
+        radiusMaxPixels: 3.5,
+        getFillColor: vesselColor,
+        parameters: ON_TOP,
+        ...common,
+      }),
+    )
+  }
+
+  // Short-horizon forecast: where each moving track will be in 10 minutes at current course/speed.
+  if (L.forecast) {
+    const moving = [...aircraft, ...vessels].filter((e) => (e.spd ?? 0) > 1 && e.hdg != null)
+    layers.push(
+      new PathLayer<Entity, PathStyleExtensionProps<Entity>>({
+        id: 'forecast',
+        data: moving,
+        getPath: (e) => {
+          const [lon, lat, z] = pos(e)
+          const [lon2, lat2] = ahead({ ...e, lon, lat }, e.kind === 'aircraft' ? 10 : 60)
+          return [
+            [lon, lat, z],
+            [lon2, lat2, z],
+          ] as [number, number, number][]
+        },
+        getColor: (e) => {
+          const c = entityColor(e)
+          return [c[0], c[1], c[2], ui.selected === e.id ? 230 : 90]
+        },
+        getWidth: (e) => (ui.selected === e.id ? 3 : 1.5),
+        widthUnits: 'pixels',
+        getDashArray: [4, 4],
+        extensions: [DASH],
+        updateTriggers: { getPath: now, getColor: ui.selected, getWidth: ui.selected },
+      }),
+    )
+  }
+
+  // Pings: every entity that just updated emits an expanding, fading ring.
+  const pings: { e: Entity; age: number }[] = []
+  for (const [id, at] of live.touched) {
+    const age = now - at
+    if (age > PING_MS) continue
+    const e = live.entities.get(id)
+    if (e && L[e.kind === 'aircraft' ? 'aircraft' : e.kind === 'vessel' ? 'vessels' : e.kind === 'fire' ? 'fires' : 'news']) {
+      pings.push({ e, age })
+    }
+  }
+  layers.push(
+    new ScatterplotLayer<{ e: Entity; age: number }>({
+      id: 'pings',
+      data: pings,
+      getPosition: ({ e }) => pos(e),
+      getRadius: ({ age }) => 4 + 22 * (age / PING_MS),
+      radiusUnits: 'pixels',
+      stroked: true,
+      filled: false,
+      getLineWidth: 1.5,
+      lineWidthUnits: 'pixels',
+      getLineColor: ({ e, age }) => {
+        const c = entityColor(e)
+        return [c[0], c[1], c[2], Math.round(220 * (1 - age / PING_MS))]
+      },
+      updateTriggers: { getRadius: now, getLineColor: now, getPosition: now },
+      parameters: ON_TOP,
+    }),
+  )
+
+  // Alert ripples
+  const ripples = live.freshAlerts.filter((a) => now - a.at < ALERT_RIPPLE_MS && a.alert.lon != null)
+  live.freshAlerts = ripples
+  layers.push(
+    new ScatterplotLayer<{ alert: { lon?: number; lat?: number; severity: string }; at: number }>({
+      id: 'alert-ripples',
+      data: ripples.flatMap((r) => [0, 1, 2].map((k) => ({ ...r, at: r.at + k * 500 }))),
+      getPosition: (r) => [r.alert.lon!, r.alert.lat!],
+      getRadius: (r) => 8 + 70 * (((now - r.at) % 3000) / 3000),
+      radiusUnits: 'pixels',
+      stroked: true,
+      filled: false,
+      getLineWidth: 2,
+      lineWidthUnits: 'pixels',
+      getLineColor: (r) => {
+        const base: RGBA = r.alert.severity === 'high' ? [244, 63, 94, 255] : [251, 191, 36, 255]
+        const fade = 1 - ((now - r.at) % 3000) / 3000
+        return [base[0], base[1], base[2], now < r.at ? 0 : Math.round(230 * fade)]
+      },
+      updateTriggers: { getRadius: now, getLineColor: now },
+      parameters: ON_TOP,
+    }),
+  )
+
+  // Selection halo
+  const sel = ui.selected ? live.entities.get(ui.selected) : undefined
+  if (sel) {
+    layers.push(
+      new ScatterplotLayer<Entity>({
+        id: 'selection',
+        data: [sel],
+        getPosition: pos,
+        getRadius: 16 + 3 * Math.sin(now / 200),
+        radiusUnits: 'pixels',
+        stroked: true,
+        filled: false,
+        getLineWidth: 2.5,
+        lineWidthUnits: 'pixels',
+        getLineColor: COLORS.selected,
+        updateTriggers: { getRadius: now, getPosition: now },
+        parameters: ON_TOP,
+      }),
+    )
+  }
+
+  if (zoom >= 6.5) {
+    const labelled = [...aircraft.filter((e) => e.props.military || e.props.uav || zoom >= 8), ...vessels, ...(zoom >= 8 ? facilities : [])]
+    layers.push(
+      new TextLayer<Entity>({
+        id: 'labels',
+        data: labelled,
+        getPosition: pos,
+        getText: (e) => e.label,
+        getSize: 12,
+        getColor: (e) => entityColor(e),
+        getPixelOffset: [0, -16],
+        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+        fontWeight: 600,
+        outlineWidth: 3,
+        outlineColor: [2, 6, 12, 230],
+        fontSettings: { sdf: true },
+        updateTriggers: { getPosition: now },
+        parameters: { ...ON_TOP, cullMode: 'none' as const },
+      }),
+    )
+  }
+
+  return layers
+}

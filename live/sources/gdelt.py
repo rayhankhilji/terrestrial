@@ -137,13 +137,24 @@ async def run(hub: Hub) -> None:
                             (t - timedelta(minutes=15 * k)).strftime("%Y%m%d%H%M%S")
                             for k in range(BACKFILL_FILES)
                         ][::-1]
-                    total = 0
+                    total, missing = 0, []
                     for s in stamps:
-                        for entity in await _load(http, FILE_URL.format(stamp=s)):
+                        try:
+                            entities = await _load(http, FILE_URL.format(stamp=s))
+                        except httpx.HTTPStatusError as exc:
+                            # GDELT occasionally lists an export before it is published, or skips
+                            # one; note it and carry on rather than dropping the whole cycle.
+                            if exc.response.status_code != 404:
+                                raise
+                            missing.append(s)
+                            continue
+                        for entity in entities:
                             hub.upsert(entity)
                             total += 1
-                    seen_stamp = stamp
-                    hub.source_ok(NAME, f"{total} force/coercion events in theatre from export {stamp}")
+                    if stamp not in missing:
+                        seen_stamp = stamp  # otherwise retry the latest export on the next poll
+                    note = f"; not yet published: {', '.join(missing)}" if missing else ""
+                    hub.source_ok(NAME, f"{total} force/coercion events in theatre from export {stamp}{note}")
             except (httpx.HTTPError, ValueError, zipfile.BadZipFile, IndexError) as exc:
                 hub.source_error(NAME, f"{type(exc).__name__}: {exc}")
             await asyncio.sleep(POLL_S)

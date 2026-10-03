@@ -37,6 +37,21 @@ hub = Hub(record_dir=None if REPLAY else LIVE_DIR)
 sentinels = SentinelEngine()
 
 
+async def supervise(name: str, run) -> None:
+    """Run a source forever: a crash is logged with its traceback, shown on the source's
+    status pill, and the source restarts. Nothing fails silently."""
+    while True:
+        try:
+            await run(hub)
+            return  # the source finished on purpose (e.g. disabled: no key)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            log.exception("live source %s crashed", name)
+            hub.source_error(name, f"crashed: {type(exc).__name__}: {exc}; restarting in 10s")
+            await asyncio.sleep(10)
+
+
 async def _expire_loop() -> None:
     while True:
         await asyncio.sleep(5)
@@ -46,14 +61,18 @@ async def _expire_loop() -> None:
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%H:%M:%S")
+    logging.getLogger("httpx").setLevel(logging.WARNING)
     facilities = await asyncio.to_thread(wikidata.load_into, hub)
     hub.listeners.append(Correlator(facilities))
     hub.listeners.append(sentinels)
     if REPLAY:
         speed = float(os.environ.get("LIVE_REPLAY_SPEED", "1"))
-        tasks = [asyncio.create_task(replay.run(hub, Path(REPLAY), speed))]
+        tasks = [asyncio.create_task(supervise("replay", lambda h: replay.run(h, Path(REPLAY), speed)))]
     else:
-        tasks = [asyncio.create_task(src.run(hub)) for src in (adsb, weather, gdelt, ais, firms)]
+        tasks = [
+            asyncio.create_task(supervise(src.__name__.rsplit(".", 1)[-1], src.run))
+            for src in (adsb, weather, gdelt, ais, firms)
+        ]
     tasks.append(asyncio.create_task(_expire_loop()))
     try:
         yield

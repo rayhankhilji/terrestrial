@@ -1,0 +1,224 @@
+import { type Entity, live, useLive } from '../lib/live'
+import { ago, coord, describe, kindLabel, num, utc } from '../lib/format'
+import { select, ui, useStore } from '../lib/store'
+import { entityColor } from '../map/liveLayers'
+import { ForecastChart } from './ForecastChart'
+
+function pivots(e: Entity): { label: string; href: string }[] {
+  const p = e.props
+  const links: { label: string; href: string }[] = []
+  if (e.kind === 'aircraft') {
+    links.push({ label: 'ADS-B Exchange', href: `https://globe.adsbexchange.com/?icao=${p.icao24}` })
+    links.push({ label: 'adsb.lol', href: `https://adsb.lol/?icao=${p.icao24}` })
+  }
+  if (e.kind === 'vessel') {
+    links.push({ label: 'MarineTraffic', href: `https://www.marinetraffic.com/en/ais/details/ships/mmsi:${p.mmsi}` })
+    if (p.sanctions?.url) links.push({ label: 'OpenSanctions', href: p.sanctions.url })
+  }
+  if (e.kind === 'facility') links.push({ label: 'Wikidata', href: p.url })
+  if (e.kind === 'news') links.push({ label: 'Source article', href: p.url })
+  if (e.kind === 'fire') links.push({ label: 'NASA FIRMS map', href: `https://firms.modaps.eosdis.nasa.gov/map/#d:24hrs;@${e.lon},${e.lat},12z` })
+  return links
+}
+
+function facts(e: Entity): [string, string][] {
+  const p = e.props
+  const rows: [string, string][] = [
+    ['Position', coord(e.lon, e.lat)],
+    ['Observed', `${utc(e.orig_ts ?? e.ts, true)} (${ago(e.orig_ts ?? e.ts)})`],
+    ['Source', e.src],
+  ]
+  if (e.kind === 'aircraft') {
+    rows.push(
+      ['Callsign', p.callsign ?? '—'],
+      ['Registration', p.registration ?? '—'],
+      ['ICAO type', p.type ?? '—'],
+      ['ICAO 24-bit', String(p.icao24).toUpperCase()],
+      ['Altitude', e.alt != null ? `${num(e.alt / 0.3048)} ft` : '—'],
+      ['Ground speed', e.spd != null ? `${num(e.spd)} kn` : '—'],
+      ['Track', e.hdg != null ? `${num(e.hdg)}°` : '—'],
+      ['Squawk', p.squawk ?? '—'],
+    )
+    if (p.emergency) rows.push(['Emergency', p.emergency])
+  }
+  if (e.kind === 'vessel') {
+    rows.push(
+      ['MMSI', p.mmsi],
+      ['IMO', p.imo ?? '—'],
+      ['Type', p.ship_type ?? '—'],
+      ['Speed', e.spd != null ? `${num(e.spd, 1)} kn` : '—'],
+      ['Course', e.hdg != null ? `${num(e.hdg)}°` : '—'],
+      ['Destination (self-reported)', p.destination ?? '—'],
+      ['Length', p.length_m ? `${p.length_m} m` : '—'],
+    )
+  }
+  if (e.kind === 'fire') {
+    rows.push(['Radiative power', `${num(p.frp_mw, 1)} MW`], ['Satellite', `${p.satellite} (${p.product})`], ['Confidence', p.confidence], ['Day/night', p.daynight === 'D' ? 'day' : 'night'])
+  }
+  if (e.kind === 'news') {
+    rows.push(['Place', p.place], ['Actors', (p.actors ?? []).join(', ') || '—'], ['CAMEO codes', (p.codes ?? []).join(', ')], ['Goldstein (min)', num(p.goldstein, 1)], ['Mentions', num(p.mentions)], ['Tone', num(p.tone, 1)])
+  }
+  if (e.kind === 'facility') {
+    rows.push(['Type', p.type], ['Country (Wikidata)', p.country ?? '—'], ['Wikidata', p.qid])
+  }
+  if (e.kind === 'station') {
+    rows.push(
+      ['Significant wave height', `${num(p.wave_m, 2)} m`],
+      ['Cloud cover', `${num(p.cloud_pct)}%`],
+      ['Wind', `${num(p.wind_kmh)} km/h from ${num(p.wind_dir)}°`],
+      ['Visibility', p.visibility_m != null ? `${num(p.visibility_m / 1000, 1)} km` : '—'],
+    )
+  }
+  return rows
+}
+
+export function Inspector() {
+  useLive(400)
+  const selected = useStore(ui, (s) => s.selected)
+  const follow = useStore(ui, (s) => s.follow)
+  const e = selected ? live.entities.get(selected) : undefined
+  if (!selected || !e) return null
+  const c = entityColor(e)
+  const relations = [...live.relations.values()].filter((r) => r.a === e.id || r.b === e.id)
+  const alerts = live.alerts.filter((a) => a.entities.includes(e.id)).slice(0, 8)
+
+  return (
+    <aside className="inspector">
+      <header className="insp-head" style={{ borderColor: `rgb(${c[0]},${c[1]},${c[2]})` }}>
+        <div>
+          <div className="insp-kind" style={{ color: `rgb(${c[0]},${c[1]},${c[2]})` }}>
+            {kindLabel(e)}
+          </div>
+          <h2>{e.label}</h2>
+          <div className="muted">{describe(e)}</div>
+        </div>
+        <button className="close" onClick={() => select(null)} aria-label="Close">
+          ×
+        </button>
+      </header>
+
+      <div className="insp-actions">
+        <span className={`prov prov-${e.prov}`}>{e.prov}</span>
+        {(e.kind === 'aircraft' || e.kind === 'vessel') && (
+          <button className={follow ? 'on' : ''} onClick={() => ui.set({ follow: !follow })}>
+            {follow ? 'Following' : 'Follow'}
+          </button>
+        )}
+        <button onClick={() => select(e.id, { lon: e.lon, lat: e.lat, zoom: e.kind === 'facility' ? 13 : 9 })}>Fly to</button>
+      </div>
+
+      {e.props.sanctions && (
+        <section className="callout danger">
+          <strong>OpenSanctions match ({String(e.props.sanctions.matched_on).toUpperCase()})</strong>
+          <div>
+            {e.props.sanctions.name}: {e.props.sanctions.topics.join(', ')}
+          </div>
+          <div className="muted small">{e.props.sanctions.datasets.join(' · ')}</div>
+        </section>
+      )}
+
+      <section>
+        <h3>Facts</h3>
+        <table className="facts">
+          <tbody>
+            {facts(e).map(([k, v]) => (
+              <tr key={k}>
+                <th>{k}</th>
+                <td>{v}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      {e.kind === 'station' && e.props.forecast && (
+        <section>
+          <h3>Forecast windows</h3>
+          <p className="muted small">{e.props.forecast.kind}. Shaded hours meet the threshold.</p>
+          <ForecastChart
+            title={`Ship-to-ship feasible (waves < ${e.props.forecast.sts_max_wave_m} m)`}
+            times={e.props.forecast.times}
+            values={e.props.forecast.wave_h}
+            unit="m"
+            threshold={e.props.forecast.sts_max_wave_m}
+            below
+          />
+          <ForecastChart
+            title={`Optical imagery useful (cloud < ${e.props.forecast.optical_max_cloud_pct}%)`}
+            times={e.props.forecast.times}
+            values={e.props.forecast.cloud_h}
+            unit="%"
+            threshold={e.props.forecast.optical_max_cloud_pct}
+            below
+          />
+        </section>
+      )}
+
+      {(e.kind === 'aircraft' || e.kind === 'vessel') && e.spd != null && e.hdg != null && (
+        <section>
+          <h3>Projection</h3>
+          <p className="muted small">Model estimate: constant course and speed from the last report.</p>
+          <table className="facts">
+            <tbody>
+              {(e.kind === 'aircraft' ? [5, 10, 20] : [30, 60, 180]).map((m) => {
+                const km = (e.spd ?? 0) * 1.852 * (m / 60)
+                return (
+                  <tr key={m}>
+                    <th>+{m} min</th>
+                    <td>{num(km)} km along {num(e.hdg)}°</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </section>
+      )}
+
+      {relations.length > 0 && (
+        <section>
+          <h3>Links</h3>
+          <ul className="links">
+            {relations.map((r) => {
+              const other = live.entities.get(r.a === e.id ? r.b : r.a)
+              return (
+                <li key={r.id} onClick={() => other && select(other.id, { lon: other.lon, lat: other.lat, zoom: 10 })}>
+                  <span className="rel">{r.rel.replaceAll('_', ' ').toLowerCase()}</span> {other?.label ?? r.b}
+                  <span className={`prov prov-${r.prov}`}>{r.prov}</span>
+                  {r.detail && <div className="muted small">{r.detail}</div>}
+                  <div className="why small">derived from: {r.why.join(', ')}</div>
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+      )}
+
+      {alerts.length > 0 && (
+        <section>
+          <h3>Alerts</h3>
+          <ul className="links">
+            {alerts.map((a) => (
+              <li key={a.id}>
+                <span className={`sev sev-${a.severity}`}>{a.severity}</span> {a.title}
+                <div className="muted small">
+                  {ago(a.ts)} · {a.body}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section>
+        <h3>Verify outside Terrestrial</h3>
+        <div className="pivots">
+          {pivots(e).map((l) => (
+            <a key={l.href} href={l.href} target="_blank" rel="noreferrer">
+              {l.label} ↗
+            </a>
+          ))}
+        </div>
+      </section>
+    </aside>
+  )
+}

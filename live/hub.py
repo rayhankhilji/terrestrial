@@ -119,7 +119,15 @@ class Hub:
             status.lag_ms.append(max(0, entity["rx"] - entity["ts"]))
         self._publish({"t": "upsert", "e": entity})
         for listener in self.listeners:
-            listener(self, entity)
+            try:
+                listener(self, entity)
+            except Exception as exc:
+                # A faulty rule must not take a sensor offline; log it loudly and surface it.
+                log.exception("listener %s failed on %s", type(listener).__name__, entity["id"])
+                self.source_error(
+                    "engine",
+                    f"{type(listener).__name__} failed on {entity['id']}: {type(exc).__name__}: {exc}",
+                )
 
     def relate(self, relation: dict) -> None:
         relation.setdefault("ts", now_ms())

@@ -1,20 +1,27 @@
-import { useEffect, useState } from 'react'
+import { Inspector } from './components/Inspector'
+import { LayerControl } from './components/LayerControl'
+import { LeftPanel } from './components/LeftPanel'
+import { SentinelEditor } from './components/SentinelEditor'
+import { TopBar } from './components/TopBar'
+import { ui, useStore } from './lib/store'
+import MapView from './map/MapView'
 
 export default function App() {
-  const [status, setStatus] = useState('checking API…')
-
-  useEffect(() => {
-    fetch('/api/health')
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .then((d: { status: string }) => setStatus(`API ${d.status}`))
-      .catch((e: Error) => setStatus(`API unreachable: ${e.message}`))
-  }, [])
-
+  const sentinelsOpen = useStore(ui, (s) => s.sentinelsOpen)
   return (
-    <main className="boot">
-      <h1>Terrestrial</h1>
-      <p>Dark-vessel detection for the Black Sea</p>
-      <p className="muted">{status}</p>
-    </main>
+    <div className="app">
+      <TopBar />
+      <LeftPanel />
+      <main className="stage">
+        <MapView />
+        <LayerControl />
+        <Inspector />
+      </main>
+      <footer className="footer">
+        Data: Global Fishing Watch, OpenSanctions, ADS-B (adsb.fi, adsb.lol), GDELT, NASA FIRMS, Open-Meteo, Wikidata, OpenStreetMap. Heuristic risk
+        score — candidate findings, not conclusions.
+      </footer>
+      {sentinelsOpen && <SentinelEditor />}
+    </div>
   )
 }
