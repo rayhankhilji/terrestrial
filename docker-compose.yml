@@ -12,4 +12,18 @@ services:
       - "8080:8080"
     volumes:
       - ./data/turing:/home/ubuntu/.turing
+    # The image's default entrypoint runs the server's interactive console in the
+    # foreground, which exits when its terminal goes away. Run the server as a daemon
+    # (plus the visualiser's static server) and keep the container alive instead.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        serve -s "$$TURINGDB_VIS_DIR" -l "tcp://127.0.0.1:$$TURINGDB_VIS_PORT" >/tmp/visualizer.log 2>&1 &
+        turingdb start -i 0.0.0.0 -p 6666 -ui -demon -start-timeout 10000 &&
+        exec sleep infinity
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "-X", "POST", "http://localhost:6666/query", "-d", "LIST GRAPH"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
