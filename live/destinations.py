@@ -86,7 +86,11 @@ class Destinations:
         dest, ticks = self.pending.get(eid, (None, 0))
         ticks = ticks + 1 if dest == compact["dest"] else 1
         self.pending[eid] = (compact["dest"], ticks)
-        if ticks < CONFIRM_TICKS or now - self.last_alert.get(eid, 0) < REROUTE_COOLDOWN_MS:
+        if (
+            ticks < CONFIRM_TICKS
+            or eid in self.last_alert
+            and now - self.last_alert[eid] < REROUTE_COOLDOWN_MS
+        ):
             return None
         self.settled[eid] = compact
         self.pending.pop(eid, None)
