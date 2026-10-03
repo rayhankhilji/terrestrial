@@ -43,15 +43,30 @@ def _tables(vessels, gaps=(), envelopes=(), candidates=(), encounters=(), visits
     s = _sanctions()
     return Tables(
         vessels=pd.DataFrame(vessels, columns=["vessel_id", "name", "flag", "imo", "mmsi", "vessel_type"]),
-        identities=pd.DataFrame(list(identities), columns=["vessel_id", "name", "flag", "mmsi", "imo", "date_from", "date_to"]),
+        identities=pd.DataFrame(
+            list(identities), columns=["vessel_id", "name", "flag", "mmsi", "imo", "date_from", "date_to"]
+        ),
         gaps=pd.DataFrame(list(gaps), columns=list(_gap("x", "x", T0, 1).keys())),
         envelopes=pd.DataFrame(list(envelopes), columns=["gap_id", "impossible"]),
         candidates=pd.DataFrame(
             list(candidates),
-            columns=["gap_id", "vessel_id", "sar_id", "ts", "consistent", "in_aoi", "occupied_aoi", "gap_consistent_candidates"],
+            columns=[
+                "gap_id",
+                "vessel_id",
+                "sar_id",
+                "ts",
+                "consistent",
+                "in_aoi",
+                "occupied_aoi",
+                "gap_consistent_candidates",
+            ],
         ),
-        encounters=pd.DataFrame(list(encounters), columns=["enc_id", "vessel_id", "other_vessel_id", "start"]),
-        port_visits=pd.DataFrame(list(visits), columns=["visit_id", "vessel_id", "start", "aoi", "occupied_aoi"]),
+        encounters=pd.DataFrame(
+            list(encounters), columns=["enc_id", "vessel_id", "other_vessel_id", "start"]
+        ),
+        port_visits=pd.DataFrame(
+            list(visits), columns=["visit_id", "vessel_id", "start", "aoi", "occupied_aoi"]
+        ),
         sanctions=s,
     )
 
@@ -99,11 +114,17 @@ def test_covert_port_call_requires_time_consistent_detection_in_occupied_aoi():
 def test_gap_near_occupied_impossible_and_encounters_with_listed_partner():
     s = _sanctions()
     listed = _listed_imo(s, shadow=True)
-    gaps = [_gap("g1", "v1", T0, 12, off=(33.40, 44.55), on=(31.0, 43.0))]  # switched off ~10 km from Sevastopol
+    gaps = [
+        _gap("g1", "v1", T0, 12, off=(33.40, 44.55), on=(31.0, 43.0))
+    ]  # switched off ~10 km from Sevastopol
     encs = [("e1", "v1", "v2", T0), ("e2", "v1", "v3", T0), ("e3", "v1", "v2", T0)]
     _, bd = score(
         _tables(
-            [("v1", "D", "RU", None, "3", "tanker"), ("v2", "SHADOW", "GA", listed, "4", "tanker"), ("v3", "X", "TR", None, "5", "cargo")],
+            [
+                ("v1", "D", "RU", None, "3", "tanker"),
+                ("v2", "SHADOW", "GA", listed, "4", "tanker"),
+                ("v3", "X", "TR", None, "5", "cargo"),
+            ],
             gaps=gaps,
             envelopes=[("g1", True)],
             encounters=encs,
@@ -120,12 +141,22 @@ def test_identity_changes_in_window_and_total_cap():
     imo = _listed_imo(s)
     gaps = [_gap(f"g{i}", "v1", T0 + pd.Timedelta(days=i), 20, off=(33.45, 44.6)) for i in range(4)]
     idents = [
-        ("v1", "OLD", "PA", "1", imo, T0 - pd.Timedelta(days=400), T0 - pd.Timedelta(days=200)),  # before window: ignored
+        (
+            "v1",
+            "OLD",
+            "PA",
+            "1",
+            imo,
+            T0 - pd.Timedelta(days=400),
+            T0 - pd.Timedelta(days=200),
+        ),  # before window: ignored
         ("v1", "MID", "PA", "1", imo, T0 - pd.Timedelta(days=200), T0 + pd.Timedelta(days=3)),
         ("v1", "NEW", "CM", "1", imo, T0 + pd.Timedelta(days=3), T0 + pd.Timedelta(days=60)),
     ]
     visits = [("p1", "v1", T0 + pd.Timedelta(days=5), "Berdyansk", True)]
-    scores, bd = score(_tables([("v1", "NEW", "CM", imo, "1", "cargo")], gaps=gaps, identities=idents, visits=visits))
+    scores, bd = score(
+        _tables([("v1", "NEW", "CM", imo, "1", "cargo")], gaps=gaps, identities=idents, visits=visits)
+    )
     assert _points(bd, "v1", "identity_change") == W.identity_change_each  # only the in-window change
     assert _points(bd, "v1", "occupied_port_visit") == W.occupied_port_visit
     assert scores.loc[0, "raw_points"] > W.total_cap
@@ -135,5 +166,7 @@ def test_identity_changes_in_window_and_total_cap():
 @pytest.mark.parametrize("as_of_days", [0, 2])
 def test_as_of_ignores_future_evidence(as_of_days):
     gaps = [_gap(f"g{i}", "v1", T0 + pd.Timedelta(days=i), 20) for i in range(3)]
-    _, bd = score(_tables([("v1", "E", "PA", None, "1", "cargo")], gaps=gaps), as_of=T0 + pd.Timedelta(days=as_of_days))
+    _, bd = score(
+        _tables([("v1", "E", "PA", None, "1", "cargo")], gaps=gaps), as_of=T0 + pd.Timedelta(days=as_of_days)
+    )
     assert _points(bd, "v1", "gap") == W.gap_each * (as_of_days + 1)

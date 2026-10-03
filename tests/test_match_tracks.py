@@ -94,7 +94,9 @@ def test_dark_track_drops_detection_that_breaks_feasibility(gap, vessels):
     near_a = geo.destination(*A, 90, 5)
     # Near B early, then back near A later: each alone is consistent, together they are not
     # chainable in that order, so the track keeps one detection.
-    sar = _sar([("near-b", T0 + pd.Timedelta(hours=12), *near_b), ("near-a", T0 + pd.Timedelta(hours=13), *near_a)])
+    sar = _sar(
+        [("near-b", T0 + pd.Timedelta(hours=12), *near_b), ("near-a", T0 + pd.Timedelta(hours=13), *near_a)]
+    )
     c = match(gap, env, sar)
     track = dark_track(gap.iloc[0], c[c["consistent"]], env.loc[0, "vmax_kn"])
     assert track is not None and len(track.sar_ids) == 1

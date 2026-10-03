@@ -8,20 +8,17 @@ midpoint, where distances and azimuths from the centre are exact.
 
 from __future__ import annotations
 
+import logging
 import math
 from dataclasses import dataclass
+from datetime import date
 
 import numpy as np
+import pandas as pd
 from pyproj import CRS, Transformer
 from shapely.geometry import Polygon
 
-import logging
-from datetime import date
-
-import pandas as pd
-
 from pipeline import geo
-from pipeline.io import read_table, write_table
 from pipeline.config import (
     ELLIPSE_POINTS,
     IMPOSSIBLE_RADIUS_KM,
@@ -29,6 +26,7 @@ from pipeline.config import (
     SPEED_BUFFER,
     VMAX_KN,
 )
+from pipeline.io import read_table, write_table
 
 # Keep a strictly positive minor axis so a gap flown at exactly max speed still yields a
 # valid (very thin) polygon instead of a degenerate line.

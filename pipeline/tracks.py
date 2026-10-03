@@ -67,9 +67,7 @@ def dark_track(gap, candidates: pd.DataFrame, vmax_kn: float) -> DarkTrack | Non
                 best_len[i], best_time[i], best_dist[i], parent[i] = length, arrive, dist, j
 
     # the chain must still reach B in time
-    feasible = [
-        i for i in range(n) if best_len[i] > 0 and best_time[i] + _hours(d_to_b[i] / speed) <= t_on
-    ]
+    feasible = [i for i in range(n) if best_len[i] > 0 and best_time[i] + _hours(d_to_b[i] / speed) <= t_on]
     if not feasible:
         return None
     end = max(feasible, key=lambda i: (best_len[i], -(best_dist[i] + d_to_b[i])))

@@ -84,13 +84,25 @@ def score(t: Tables, as_of: pd.Timestamp | None = None) -> tuple[pd.DataFrame, p
     impossible = set(t.envelopes.loc[t.envelopes["impossible"], "gap_id"])
     by_imo, by_mmsi = sanctions_index(t.sanctions)
     vessel_by_id = {v.vessel_id: v for v in t.vessels.itertuples(index=False)}
-    listed_ids = {vid for vid, v in vessel_by_id.items() if (hit := listing_for(v, by_imo, by_mmsi)) and hit[0]["sanctioned"]}
+    listed_ids = {
+        vid
+        for vid, v in vessel_by_id.items()
+        if (hit := listing_for(v, by_imo, by_mmsi)) and hit[0]["sanctioned"]
+    }
 
     rows: list[dict] = []
 
     def award(vid, signal, reason, points, ref, prov="observed", source="GFW events"):
         rows.append(
-            {"vessel_id": vid, "signal": signal, "reason": reason, "points": points, "evidence_ref": ref, "provenance": prov, "source": source}
+            {
+                "vessel_id": vid,
+                "signal": signal,
+                "reason": reason,
+                "points": points,
+                "evidence_ref": ref,
+                "provenance": prov,
+                "source": source,
+            }
         )
 
     for vid, v in vessel_by_id.items():
@@ -100,9 +112,23 @@ def score(t: Tables, as_of: pd.Timestamp | None = None) -> tuple[pd.DataFrame, p
             entry, on = hit
             topics = ", ".join(entry["topics"])
             if entry["sanctioned"]:
-                award(vid, "sanctioned", f"Listed on OpenSanctions ({topics}), matched on {on}", W.sanctioned, f"os:{entry['os_id']}", source="OpenSanctions")
+                award(
+                    vid,
+                    "sanctioned",
+                    f"Listed on OpenSanctions ({topics}), matched on {on}",
+                    W.sanctioned,
+                    f"os:{entry['os_id']}",
+                    source="OpenSanctions",
+                )
             if entry["detained"]:
-                award(vid, "psc_detention", f"Port-state-control detention record (not a sanction), matched on {on}", W.psc_detention, f"os:{entry['os_id']}", source="OpenSanctions")
+                award(
+                    vid,
+                    "psc_detention",
+                    f"Port-state-control detention record (not a sanction), matched on {on}",
+                    W.psc_detention,
+                    f"os:{entry['os_id']}",
+                    source="OpenSanctions",
+                )
 
         # 2–6. AIS gaps and what happened inside them
         vg = gaps[gaps["vessel_id"] == vid].sort_values("start")
@@ -110,7 +136,9 @@ def score(t: Tables, as_of: pd.Timestamp | None = None) -> tuple[pd.DataFrame, p
             if k * W.gap_each >= W.gap_cap:
                 break
             hours = f"{g.duration_h:.0f} h" if not g.open else "still open"
-            award(vid, "gap", f"AIS switched off {_fmt_day(g.start)} ({hours})", W.gap_each, f"gap:{g.gap_id}")
+            award(
+                vid, "gap", f"AIS switched off {_fmt_day(g.start)} ({hours})", W.gap_each, f"gap:{g.gap_id}"
+            )
         near = None
         for g in vg.itertuples(index=False):
             ends = [(g.off_lon, g.off_lat, "switched off")]
@@ -125,8 +153,16 @@ def score(t: Tables, as_of: pd.Timestamp | None = None) -> tuple[pd.DataFrame, p
                 break
         if near:
             g, name, km, what = near
-            award(vid, "gap_near_occupied", f"AIS {what} {km:.0f} km from occupied {name}", W.gap_near_occupied, f"gap:{g.gap_id}")
-        vc = cands[(cands["vessel_id"] == vid) & cands["consistent"]].sort_values(["gap_consistent_candidates", "ts"])
+            award(
+                vid,
+                "gap_near_occupied",
+                f"AIS {what} {km:.0f} km from occupied {name}",
+                W.gap_near_occupied,
+                f"gap:{g.gap_id}",
+            )
+        vc = cands[(cands["vessel_id"] == vid) & cands["consistent"]].sort_values(
+            ["gap_consistent_candidates", "ts"]
+        )
         if not vc.empty:
             c = vc.iloc[0]
             award(
@@ -158,18 +194,36 @@ def score(t: Tables, as_of: pd.Timestamp | None = None) -> tuple[pd.DataFrame, p
                 break
             other = vessel_by_id.get(e.other_vessel_id)
             who = (other.name if other is not None and other.name else e.other_vessel_id) or "unknown vessel"
-            award(vid, "encounter", f"Ship-to-ship encounter with {who} on {_fmt_day(e.start)}", W.encounter_each, f"enc:{e.enc_id}")
+            award(
+                vid,
+                "encounter",
+                f"Ship-to-ship encounter with {who} on {_fmt_day(e.start)}",
+                W.encounter_each,
+                f"enc:{e.enc_id}",
+            )
         listed_partner = ve[ve["other_vessel_id"].isin(listed_ids)]
         if not listed_partner.empty:
             e = listed_partner.iloc[0]
             other = vessel_by_id.get(e["other_vessel_id"])
-            award(vid, "encounter_sanctioned", f"Met a sanctions-listed vessel ({other.name if other is not None else e['other_vessel_id']})", W.encounter_sanctioned, f"enc:{e['enc_id']}")
+            award(
+                vid,
+                "encounter_sanctioned",
+                f"Met a sanctions-listed vessel ({other.name if other is not None else e['other_vessel_id']})",
+                W.encounter_sanctioned,
+                f"enc:{e['enc_id']}",
+            )
 
         # 9. Port visits inside occupied AOIs
         vv = visits[(visits["vessel_id"] == vid) & visits["occupied_aoi"]].sort_values("start")
         if not vv.empty:
             p = vv.iloc[0]
-            award(vid, "occupied_port_visit", f"AIS port visit at occupied {p['aoi']} on {_fmt_day(p['start'])}", W.occupied_port_visit, f"visit:{p['visit_id']}")
+            award(
+                vid,
+                "occupied_port_visit",
+                f"AIS port visit at occupied {p['aoi']} on {_fmt_day(p['start'])}",
+                W.occupied_port_visit,
+                f"visit:{p['visit_id']}",
+            )
 
         # 10. Identity changes (name / flag) inside the window
         vi = t.identities[t.identities["vessel_id"] == vid].sort_values("date_from")
@@ -181,7 +235,11 @@ def score(t: Tables, as_of: pd.Timestamp | None = None) -> tuple[pd.DataFrame, p
             prev = r
         window_start = t.gaps["start"].min() if not t.gaps.empty else None
         if window_start is not None:
-            changes = [(a, b) for a, b in changes if b.date_from >= window_start and (as_of is None or b.date_from <= as_of)]
+            changes = [
+                (a, b)
+                for a, b in changes
+                if b.date_from >= window_start and (as_of is None or b.date_from <= as_of)
+            ]
         for k, (a, b) in enumerate(changes):
             if k * W.identity_change_each >= W.identity_change_cap:
                 break
@@ -190,9 +248,18 @@ def score(t: Tables, as_of: pd.Timestamp | None = None) -> tuple[pd.DataFrame, p
                 what.append(f"name {a.name} → {b.name}")
             if a.flag != b.flag:
                 what.append(f"flag {a.flag} → {b.flag}")
-            award(vid, "identity_change", f"Identity change on {_fmt_day(b.date_from)}: {', '.join(what)}", W.identity_change_each, f"identity:{vid}:{b.date_from.isoformat()}", source="GFW identity")
+            award(
+                vid,
+                "identity_change",
+                f"Identity change on {_fmt_day(b.date_from)}: {', '.join(what)}",
+                W.identity_change_each,
+                f"identity:{vid}:{b.date_from.isoformat()}",
+                source="GFW identity",
+            )
 
-    breakdown = pd.DataFrame(rows, columns=["vessel_id", "signal", "reason", "points", "evidence_ref", "provenance", "source"])
+    breakdown = pd.DataFrame(
+        rows, columns=["vessel_id", "signal", "reason", "points", "evidence_ref", "provenance", "source"]
+    )
     totals = breakdown.groupby("vessel_id")["points"].sum() if not breakdown.empty else pd.Series(dtype=int)
     scores = t.vessels[["vessel_id", "name", "flag", "imo", "mmsi", "vessel_type"]].copy()
     scores["raw_points"] = scores["vessel_id"].map(totals).fillna(0).astype(int)
@@ -205,7 +272,13 @@ def score(t: Tables, as_of: pd.Timestamp | None = None) -> tuple[pd.DataFrame, p
 
 def stage(start: date, end: date, args) -> None:
     t = Tables.load()
-    log.info("  in: %d vessels, %d gaps, %d candidates, %d encounters", len(t.vessels), len(t.gaps), len(t.candidates), len(t.encounters))
+    log.info(
+        "  in: %d vessels, %d gaps, %d candidates, %d encounters",
+        len(t.vessels),
+        len(t.gaps),
+        len(t.candidates),
+        len(t.encounters),
+    )
     scores, breakdown = score(t)
     write_table(scores, "scores")
     write_table(breakdown, "score_breakdown")
