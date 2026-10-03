@@ -18,10 +18,9 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from live.tracks import AirfieldIndex
+from live.tracks import TERMINAL_ALT_M, AirfieldIndex
 
 GAP_MIN = 20
-TERMINAL_ALT_M = 600.0
 AIRFIELD_KM = 6.0
 MIN_POINTS = 20
 MIN_DURATION_MIN = 10
@@ -50,11 +49,42 @@ class Flight:
         return (self.end - self.start).total_seconds() / 60
 
 
-def _terminal(row, airfields: AirfieldIndex, descending: bool) -> str | None:
+def _text(value) -> str | None:
+    return value.strip() or None if isinstance(value, str) else None
+
+
+def _bearing(a, b) -> float | None:
+    """Initial bearing a → b in degrees, None if the points coincide."""
+    la1, la2 = np.radians(a.lat), np.radians(b.lat)
+    dlon = np.radians(b.lon - a.lon)
+    y = np.sin(dlon) * np.cos(la2)
+    x = np.cos(la1) * np.sin(la2) - np.sin(la1) * np.cos(la2) * np.cos(dlon)
+    if abs(x) < 1e-12 and abs(y) < 1e-12:
+        return None
+    return float((np.degrees(np.arctan2(y, x)) + 360) % 360)
+
+
+def _heading(pts: pd.DataFrame, at_end: bool) -> float | None:
+    """Reported track at a flight's end (or start), else the bearing over the last (first)
+    positions: some military transponders omit track on approach."""
+    row = pts.iloc[-1] if at_end else pts.iloc[0]
+    if not pd.isna(row.track):
+        return float(row.track)
+    ends = pts.tail(6) if at_end else pts.head(6)
+    return _bearing(ends.iloc[0], ends.iloc[-1]) if len(ends) > 1 else None
+
+
+def _terminal(pts: pd.DataFrame, airfields: AirfieldIndex, descending: bool, outbound: bool) -> str | None:
+    row = pts.iloc[0] if outbound else pts.iloc[-1]
     low = bool(row.ground) or (row.alt_m <= TERMINAL_ALT_M and descending)
     if not low:
         return None
-    hit = airfields.nearest(row.lon, row.lat, within_km=AIRFIELD_KM)
+    heading = _heading(pts, at_end=not outbound)
+    if heading is not None and outbound:
+        heading = (heading + 180) % 360
+    hit = airfields.landing_site(
+        row.lon, row.lat, within_km=AIRFIELD_KM, ground=bool(row.ground), heading=heading
+    )
     return hit[0].ident if hit else None
 
 
@@ -74,23 +104,24 @@ def segment(positions: pd.DataFrame, airfields: AirfieldIndex) -> list[Flight]:
             pts = pd.concat([air, last_ground]).reset_index(drop=True)
             if (pts["ts"].iloc[-1] - pts["ts"].iloc[0]).total_seconds() < MIN_DURATION_MIN * 60:
                 continue
-            first, last = pts.iloc[0], pts.iloc[-1]
             tail = pts.tail(6)
             descending = bool(
                 (tail["alt_m"].diff().fillna(0) <= 30).all()
                 and tail["alt_m"].iloc[0] >= tail["alt_m"].iloc[-1]
             )
             climbing = bool(pts.head(6)["alt_m"].iloc[-1] >= pts.head(6)["alt_m"].iloc[0])
-            callsign = next((c for c in seg["callsign"].dropna() if c), None) if "callsign" in seg else None
+            callsign = (
+                next((c for c in map(_text, seg["callsign"]) if c), None) if "callsign" in seg else None
+            )
             out.append(
                 Flight(
                     hex=str(hex_),
                     callsign=callsign,
-                    type=seg["type"].iloc[0] if "type" in seg else None,
-                    reg=seg["reg"].iloc[0] if "reg" in seg else None,
+                    type=_text(seg["type"].iloc[0]) if "type" in seg else None,
+                    reg=_text(seg["reg"].iloc[0]) if "reg" in seg else None,
                     points=pts,
-                    origin=_terminal(first, airfields, descending=climbing),
-                    landing=_terminal(last, airfields, descending=descending),
+                    origin=_terminal(pts, airfields, descending=climbing, outbound=True),
+                    landing=_terminal(pts, airfields, descending=descending, outbound=False),
                 )
             )
     return out

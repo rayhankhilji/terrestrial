@@ -19,3 +19,6 @@ saved from the live source. Nothing is hand-written.
 | `history/viina_1pd_2024_sample.csv`, `history/viina_1pd_2026_sample.csv` | 150 verbatim lines each of VIINA 2.0 `event_1pd_latest_{year}` (2024 has missing UAV labels) | VIINA 2.0, Zhukov & Ayers (2023), cite on use |
 | `history/ukr_adm1_simplified.geojson` | geoBoundaries gbOpen UKR ADM1 simplified boundaries | CC BY 4.0, wmgeolab |
 | `history/openmeteo_archive_sample.json` | Open-Meteo archive response, Kyiv and Kharkiv, 20–22 Sep 2026, daily cloud/precip/wind | CC BY 4.0, Open-Meteo |
+| `history/adsb_archive_sample.csv.gz` | Every position of four military aircraft on 2 Oct 2026 from Terrestrial's extract of the adsb.lol `globe_history` archive (USAF C-17 RCH153 into Ramstein, RAF Grob Tutor UAU967 circuits at Boscombe Down, Luftwaffe A400M GAF148, Czech Mi-8 GASTN41) | ODbL, © adsb.lol contributors |
+| `history/ourairports_flight_sample.csv` | Verbatim rows of OurAirports `airports.csv`: every airfield near those flights' low points plus all large airports in the theatre box | Public domain |
+| `live/openmeteo_winds_aloft.json` | Open-Meteo forecast response, winds at 925–250 hPa in knots, 49°N 8°E, 3 Oct 2026 | CC BY 4.0, Open-Meteo |

@@ -31,9 +31,15 @@ MIN_STEP_S = 5
 TURN_DEG = 2.0
 CLIMB_M = 150.0
 FLIGHT_GAP_S = 20 * 60
-TERMINAL_ALT_M = 1500.0  # first/last point below this may be a take-off/landing
+TERMINAL_ALT_M = 900.0  # first/last point below this may be a take-off/landing
 AIRFIELD_RADIUS_KM = 8.0
 KINDS = ("aircraft", "vessel")
+EXACT_KM = 0.6
+APPROACH_KM = 20.0
+APPROACH_DEG = 30.0
+SIZE_BONUS_KM = 1.0
+MILITARY_BONUS_KM = 1.5
+SIZE_CLASS = {"large_airport": 3, "medium_airport": 2, "small_airport": 1}
 
 
 @dataclass(slots=True)
@@ -92,6 +98,8 @@ class AirfieldIndex:
         self.fields = list(fields)
         self.lon = np.radians([a.lon for a in self.fields])
         self.lat = np.radians([a.lat for a in self.fields])
+        self._kind: np.ndarray | None = None
+        self._mil: np.ndarray | None = None
 
     def nearest(
         self, lon: float, lat: float, within_km: float = AIRFIELD_RADIUS_KM
@@ -106,6 +114,53 @@ class AirfieldIndex:
         d = 2 * 6371.0 * np.arcsin(np.sqrt(h))
         i = int(np.argmin(d))
         return (self.fields[i], float(d[i])) if d[i] <= within_km else None
+
+    def landing_site(
+        self,
+        lon: float,
+        lat: float,
+        within_km: float = AIRFIELD_RADIUS_KM,
+        ground: bool = True,
+        heading: float | None = None,
+    ) -> tuple[Airfield, float] | None:
+        """The airfield an aircraft took off from or landed at (one rule for training and live).
+
+        On the ground: anything within EXACT_KM wins outright (heliports and strips sit beside
+        big bases, whose reference point can be kilometres from where an aircraft stops); beyond
+        that, larger and military fields are preferred (SIZE_BONUS_KM per size class,
+        MILITARY_BONUS_KM). Airborne (last seen low on approach, or first seen climbing out):
+        coverage often ends kilometres short of the runway, so the field must lie along
+        `heading` (pass the reciprocal for a departure), within APPROACH_KM, and be a runway
+        airfield; a field directly below (EXACT_KM) still wins."""
+        if not self.fields:
+            return None
+        if self._kind is None:
+            self._kind = np.array([SIZE_CLASS.get(a.kind, 0) for a in self.fields])
+            self._mil = np.array([a.military for a in self.fields])
+        lo, la = math.radians(lon), math.radians(lat)
+        dlon = self.lon - lo
+        h = np.sin((self.lat - la) / 2) ** 2 + np.cos(la) * np.cos(self.lat) * np.sin(dlon / 2) ** 2
+        d = 2 * 6371.0 * np.arcsin(np.sqrt(h))
+        i = int(np.argmin(d))
+        if d[i] <= EXACT_KM:
+            return self.fields[i], float(d[i])
+        bonus = SIZE_BONUS_KM * self._kind + MILITARY_BONUS_KM * self._mil
+        if ground or heading is None:
+            near = np.where(d <= within_km)[0]
+            if not len(near):
+                return None
+            j = int(near[np.argmin(d[near] - bonus[near])])
+            return self.fields[j], float(d[j])
+        y = np.sin(dlon) * np.cos(self.lat)
+        x = np.cos(la) * np.sin(self.lat) - np.sin(la) * np.cos(self.lat) * np.cos(dlon)
+        off = np.abs((np.degrees(np.arctan2(y, x)) - heading + 180) % 360 - 180)
+        near = np.where(
+            ((d <= within_km) | ((d <= APPROACH_KM) & (off <= APPROACH_DEG))) & (self._kind >= 1)
+        )[0]
+        if not len(near):
+            return None
+        j = int(near[np.argmin(d[near] * (1 + off[near] / 45) - bonus[near])])
+        return self.fields[j], float(d[j])
 
 
 class TrackStore:
@@ -144,10 +199,11 @@ class TrackStore:
 
     # --- read side -------------------------------------------------------------------------
 
-    def _terminal(self, pt: Point, kind: str) -> dict | None:
+    def _terminal(self, pt: Point, kind: str, outbound: bool = False) -> dict | None:
         if self.airfields is None or kind != "aircraft" or (pt.alt > TERMINAL_ALT_M and not pt.ground):
             return None
-        hit = self.airfields.nearest(pt.lon, pt.lat)
+        heading = None if pt.hdg is None else (pt.hdg + 180) % 360 if outbound else pt.hdg
+        hit = self.airfields.landing_site(pt.lon, pt.lat, ground=pt.ground, heading=heading)
         if hit is None:
             return None
         a, km = hit
@@ -165,7 +221,8 @@ class TrackStore:
     def flights(self, entity_id: str, hours: float = HISTORY_H, now: int | None = None) -> list[dict]:
         kind = entity_id.split(":", 1)[0]
         since = (now or now_ms()) - int(hours * 3600 * 1000)
-        pts = [p for p in self.points.get(entity_id, ()) if p.ts >= since]
+        # tuple() copies the deque atomically: readers run in worker threads while the loop appends.
+        pts = [p for p in tuple(self.points.get(entity_id, ())) if p.ts >= since]
         segments: list[list[Point]] = []
         for p in pts:
             if not segments:
@@ -187,7 +244,7 @@ class TrackStore:
                 {
                     "start": first.ts,
                     "end": last.ts,
-                    "origin": self._terminal(first, kind),
+                    "origin": self._terminal(first, kind, outbound=True),
                     "landing": self._terminal(last, kind) if landed else None,
                     "points": [p.row() for p in seg],
                 }

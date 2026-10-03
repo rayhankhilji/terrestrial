@@ -19,7 +19,7 @@ from pathlib import Path
 
 from fastapi import Body, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 
-from live import danger, nets, replay
+from live import danger, destinations, nets, replay
 from live.correlate import Correlator
 from live.hub import Hub, now_ms
 from live.sentinels import SentinelEngine
@@ -43,6 +43,7 @@ tracks = TrackStore()
 net_engine = nets.NetsEngine(tracks)
 alert_log = air_alerts.AlertLog()
 danger_zones = danger.DangerZones(alert_log)
+flight_dest = destinations.Destinations(tracks)
 
 
 async def supervise(name: str, run) -> None:
@@ -88,6 +89,9 @@ async def lifespan(_: FastAPI):
         ]
     tasks.append(asyncio.create_task(_expire_loop()))
     tasks.append(asyncio.create_task(nets.run(hub, net_engine)))
+    tasks.append(
+        asyncio.create_task(supervise(destinations.NAME, lambda h: destinations.run(h, flight_dest)))
+    )
     if not REPLAY:
         tasks.append(
             asyncio.create_task(
@@ -135,6 +139,29 @@ def track(entity_id: str, hours: float = 48) -> dict:
         return tracks.track(entity_id, hours=max(0.1, min(hours, 48)))
     except KeyError as exc:
         raise HTTPException(404, f"no track history for {entity_id}") from exc
+
+
+@app.get("/live/predict/{entity_id:path}")
+def predict(entity_id: str) -> dict:
+    """Destination forecast for one airborne aircraft: top airfields with probabilities, ETA
+    (winds aloft applied), predicted paths, endurance estimate and recent re-routes."""
+    e = hub.entities.get(entity_id)
+    if e is None:
+        raise HTTPException(404, f"{entity_id} is not in the live picture")
+    if flight_dest.predictor is None:
+        raise HTTPException(503, "no trained flight model: run uv run python -m predict.flight.train")
+    pred = flight_dest.predict(e)
+    if pred is None:
+        raise HTTPException(404, f"{entity_id} is not airborne with a current track")
+    return pred
+
+
+@app.get("/live/models/flight")
+def flight_model_card() -> dict:
+    """Model card of the destination model, verbatim."""
+    if flight_dest.predictor is None:
+        raise HTTPException(503, "no trained flight model")
+    return flight_dest.predictor.model.card
 
 
 @app.get("/live/regions")

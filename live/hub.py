@@ -85,6 +85,9 @@ class Hub:
         self._record_file = None
         self._record_day = None
         self.listeners: list = []  # callables(entity) — rule engines, correlators
+        # Derived props (predictions, threat scores) kept per entity and merged into every
+        # upsert, so a source's next position report does not wipe them.
+        self.annotations: dict[str, dict] = {}
 
     # --- sources -------------------------------------------------------------------------
 
@@ -106,6 +109,8 @@ class Hub:
 
     def upsert(self, entity: dict) -> None:
         entity["rx"] = now_ms()
+        if extra := self.annotations.get(entity["id"]):
+            entity["props"] = {**(entity.get("props") or {}), **extra}
         previous = self.entities.get(entity["id"])
         if previous is not None and previous.get("ts", 0) > entity.get("ts", 0):
             return  # out-of-order sample
@@ -130,6 +135,23 @@ class Hub:
                     "engine",
                     f"{type(listener).__name__} failed on {entity['id']}: {type(exc).__name__}: {exc}",
                 )
+
+    def annotate(self, entity_id: str, key: str, value) -> None:
+        """Attach a derived prop to a live entity and publish it (listeners are not re-run:
+        annotations come from listeners and must not feed back into them)."""
+        if value is None:
+            self.annotations.get(entity_id, {}).pop(key, None)
+        else:
+            self.annotations.setdefault(entity_id, {})[key] = value
+        e = self.entities.get(entity_id)
+        if e is None or (e.get("props") or {}).get(key) == value:
+            return
+        props = {k: v for k, v in (e.get("props") or {}).items() if k != key}
+        if value is not None:
+            props[key] = value
+        e = {**e, "props": props}
+        self.entities[entity_id] = e
+        self._publish({"t": "upsert", "e": e})
 
     def relate(self, relation: dict) -> None:
         relation.setdefault("ts", now_ms())
@@ -157,6 +179,7 @@ class Hub:
         for eid in dead:
             self.kinds.get(self.entities[eid]["kind"], set()).discard(eid)
             del self.entities[eid]
+            self.annotations.pop(eid, None)
         if dead:
             dead_set = set(dead)
             for rid in [
