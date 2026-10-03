@@ -7,7 +7,7 @@ import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&ur
 import { useEffect, useRef, useState } from 'react'
 import { describe, kindLabel } from '../lib/format'
 import { type Entity, live } from '../lib/live'
-import { type Airfield, loadAirfields } from '../lib/picture'
+import { type Airfield, loadAirfields, loadRegions } from '../lib/picture'
 import { select, ui, useStore } from '../lib/store'
 import { CARTO_DARK, satelliteStyle, TERRAIN_SOURCE } from './basemaps'
 import { liveLayers } from './liveLayers'
@@ -66,8 +66,10 @@ export default function MapView() {
       if (e?.id) select(e.id)
     }
     const onHover = (info: PickingInfo) => {
-      const o = info.object as (Entity & Partial<Airfield>) | undefined
-      if (o?.id) setHover({ x: info.x, y: info.y, kind: kindLabel(o), title: o.label, sub: describe(o) })
+      const picked = info.object as (Entity & Partial<Airfield>) | undefined
+      // Region polygons carry only an id: show the live region entity behind them.
+      const o = picked?.id ? ((live.entities.get(picked.id) as (Entity & Partial<Airfield>) | undefined) ?? picked) : picked
+      if (o?.id && o.kind) setHover({ x: info.x, y: info.y, kind: kindLabel(o), title: o.label, sub: describe(o) })
       else if (o?.ident) {
         const a = o as unknown as Airfield
         const sub = [a.icao ?? a.ident, a.country, a.kind.replace('_', ' '), a.military_rule && `matched “${a.military_rule}”`]
@@ -123,6 +125,7 @@ export default function MapView() {
     })
     live.connect()
     void loadAirfields()
+    void loadRegions()
     return () => {
       cancelAnimationFrame(raf)
       overlayRef.current = null

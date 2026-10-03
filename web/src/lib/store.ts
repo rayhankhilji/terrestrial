@@ -39,6 +39,7 @@ export type LayerKey =
   | 'airfields'
   | 'smallFields'
   | 'nets'
+  | 'danger'
   | 'vessels'
   | 'fires'
   | 'news'
@@ -53,7 +54,7 @@ export type LayerKey =
   | 'encounters'
   | 'loitering'
   | 'portVisits'
-export type LeftTab = 'alerts' | 'live' | 'nets' | 'vessels' | 'highlights'
+export type LeftTab = 'alerts' | 'live' | 'nets' | 'danger' | 'vessels' | 'highlights'
 
 export interface FlyTo {
   lon: number
@@ -76,6 +77,8 @@ export interface UIState {
   hovered: string | null
   leftTab: LeftTab
   sentinelsOpen: boolean
+  modelCardOpen: boolean
+  layersOpen: boolean
   follow: boolean
   flyTo: FlyTo | null
   search: string
@@ -92,6 +95,7 @@ export const ui = createStore<UIState>({
     airfields: true,
     smallFields: false,
     nets: true,
+    danger: true,
     vessels: true,
     fires: true,
     news: true,
@@ -111,6 +115,8 @@ export const ui = createStore<UIState>({
   hovered: null,
   leftTab: 'alerts',
   sentinelsOpen: false,
+  modelCardOpen: false,
+  layersOpen: true,
   follow: false,
   flyTo: null,
   search: '',

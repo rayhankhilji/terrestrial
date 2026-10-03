@@ -1030,3 +1030,120 @@ button.link {
   padding: 2px 14px 6px;
   letter-spacing: 0.02em;
 }
+
+/* ---- danger zones ---------------------------------------------------------------------- */
+
+.danger-head {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.danger-row {
+  align-items: center;
+}
+.danger-row .bar {
+  height: 6px;
+  background: var(--raise);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 5px;
+}
+.danger-row .bar span {
+  display: block;
+  height: 100%;
+}
+.danger-p {
+  font-size: 1.05rem;
+  font-weight: 700;
+  min-width: 48px;
+  text-align: right;
+}
+.callout.warn {
+  border-color: rgba(251, 191, 36, 0.5);
+  background: rgba(251, 191, 36, 0.08);
+}
+.up {
+  color: var(--red);
+  font-weight: 700;
+}
+.down {
+  color: var(--ok);
+  font-weight: 700;
+}
+.card-shell {
+  position: relative;
+  width: min(900px, 94vw);
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--panel-solid);
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  padding: 22px 26px;
+}
+.card-shell .close {
+  position: absolute;
+  right: 14px;
+  top: 10px;
+}
+.card {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+  margin-top: 10px;
+}
+.card .ok {
+  color: var(--ok);
+}
+.card .warn {
+  color: var(--amber);
+}
+.scores {
+  width: 100%;
+  border-collapse: collapse;
+}
+.scores th,
+.scores td {
+  padding: 3px 12px;
+  white-space: nowrap;
+}
+.scores thead th {
+  text-align: right;
+  color: var(--muted);
+  font-weight: 600;
+}
+.scores thead th:first-child {
+  text-align: left;
+}
+.scores td {
+  text-align: right;
+}
+.reliability {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 4px;
+  height: 90px;
+  align-items: end;
+  margin: 6px 0;
+}
+.reliability > div {
+  position: relative;
+  height: 100%;
+  background: var(--raise);
+  border-radius: 3px;
+}
+.rel-obs {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(94, 234, 212, 0.55);
+  border-radius: 3px;
+}
+.rel-pred {
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  height: 2px;
+  background: var(--amber);
+}

@@ -1,9 +1,9 @@
 import type { Layer, PickingInfo } from '@deck.gl/core'
 import { PathStyleExtension, type PathStyleExtensionProps } from '@deck.gl/extensions'
-import { LineLayer, PathLayer, PolygonLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers'
+import { GeoJsonLayer, LineLayer, PathLayer, PolygonLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers'
 import { SimpleMeshLayer } from '@deck.gl/mesh-layers'
 import { ahead, type Entity, live, projected } from '../lib/live'
-import { type Airfield, airfields, visible } from '../lib/picture'
+import { type Airfield, airfields, dangerColor, regionShapes, visible } from '../lib/picture'
 import type { UIState } from '../lib/store'
 import { type Flight, type Terminal, trackState } from '../lib/track'
 import { aircraftMesh, helicopterMesh, shipMesh, uavMesh } from './meshes'
@@ -177,6 +177,33 @@ export function liveLayers({ zoom, now, ui, onClick, onHover }: Context): Layer[
   }
   const common = { pickable: true, onClick, onHover }
   const layers: Layer[] = []
+
+  // Danger zones: region choropleth of the model's probability of a new air-raid alert in the
+  // current 6-hour block; regions under an alert right now get a bright red outline.
+  if (L.danger && regionShapes.loaded) {
+    const regionOf = (f: { id: string }) => live.entities.get(f.id)
+    const pulse = 0.55 + 0.45 * Math.sin(now / 350)
+    layers.push(
+      new GeoJsonLayer({
+        id: 'danger-zones',
+        data: regionShapes.features,
+        filled: true,
+        stroked: true,
+        getFillColor: (f) => dangerColor(regionOf(f as { id: string })?.props.p_new, ui.selected === (f as { id: string }).id ? 190 : 120),
+        getLineColor: (f) => {
+          const r = regionOf(f as { id: string })
+          return r?.props.alert_active ? [255, 59, 48, Math.round(255 * pulse)] : [226, 232, 240, 70]
+        },
+        getLineWidth: (f) => (regionOf(f as { id: string })?.props.alert_active ? 3 : 1),
+        lineWidthUnits: 'pixels',
+        pickable: true,
+        onClick,
+        onHover,
+        parameters: ON_TOP,
+        updateTriggers: { getFillColor: [live.version, ui.selected], getLineColor: now, getLineWidth: live.version },
+      }),
+    )
+  }
 
   if (fields.length) {
     layers.push(

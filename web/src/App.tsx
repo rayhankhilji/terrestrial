@@ -1,4 +1,5 @@
 import { Inspector } from './components/Inspector'
+import { ModelCard } from './components/ModelCard'
 import { LayerControl } from './components/LayerControl'
 import { LeftPanel } from './components/LeftPanel'
 import { SentinelEditor } from './components/SentinelEditor'
@@ -8,6 +9,7 @@ import MapView from './map/MapView'
 
 export default function App() {
   const sentinelsOpen = useStore(ui, (s) => s.sentinelsOpen)
+  const modelCardOpen = useStore(ui, (s) => s.modelCardOpen)
   return (
     <div className="app">
       <TopBar />
@@ -18,10 +20,12 @@ export default function App() {
         <Inspector />
       </main>
       <footer className="footer">
-        Data: Global Fishing Watch, OpenSanctions, ADS-B (adsb.fi, adsb.lol), GDELT, NASA FIRMS, Open-Meteo, Wikidata, OpenStreetMap. Heuristic risk
-        score — candidate findings, not conclusions.
+        Data: ADS-B (adsb.fi, adsb.lol), ADS-B Exchange DB, OurAirports, air-raid alerts (Vadimkin dataset, ubilling.net.ua), VIINA 2.0, geoBoundaries,
+        Open-Meteo, GDELT, NASA FIRMS, Wikidata, OpenSanctions, Global Fishing Watch, OpenStreetMap. Model estimates and inferred groupings —
+        candidate findings, not conclusions.
       </footer>
       {sentinelsOpen && <SentinelEditor />}
+      {modelCardOpen && <ModelCard />}
     </div>
   )
 }

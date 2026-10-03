@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 
 /** Wire types from live/hub.py */
-export type Kind = 'aircraft' | 'vessel' | 'fire' | 'news' | 'facility' | 'station' | 'net'
+export type Kind = 'aircraft' | 'vessel' | 'fire' | 'news' | 'facility' | 'station' | 'net' | 'region'
 
 export interface Entity {
   id: string

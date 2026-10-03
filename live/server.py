@@ -19,11 +19,12 @@ from pathlib import Path
 
 from fastapi import Body, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 
-from live import nets, replay
+from live import danger, nets, replay
 from live.correlate import Correlator
 from live.hub import Hub, now_ms
 from live.sentinels import SentinelEngine
 from live.sources import adsb, ais, firms, gdelt, weather, wikidata
+from live.sources import alerts as air_alerts
 from live.tracks import AirfieldIndex, TrackStore
 from pipeline.config import LIVE_DIR
 from reference.airfields import airfields
@@ -40,6 +41,8 @@ hub = Hub(record_dir=None if REPLAY else LIVE_DIR)
 sentinels = SentinelEngine()
 tracks = TrackStore()
 net_engine = nets.NetsEngine(tracks)
+alert_log = air_alerts.AlertLog()
+danger_zones = danger.DangerZones(alert_log)
 
 
 async def supervise(name: str, run) -> None:
@@ -85,6 +88,16 @@ async def lifespan(_: FastAPI):
         ]
     tasks.append(asyncio.create_task(_expire_loop()))
     tasks.append(asyncio.create_task(nets.run(hub, net_engine)))
+    if not REPLAY:
+        tasks.append(
+            asyncio.create_task(
+                supervise(
+                    air_alerts.NAME,
+                    lambda h: air_alerts.run(h, alert_log, lambda isos: danger_zones.alert_changed(h, isos)),
+                )
+            )
+        )
+        tasks.append(asyncio.create_task(supervise("danger-model", lambda h: danger_zones.run(h))))
     try:
         yield
     finally:
@@ -122,6 +135,18 @@ def track(entity_id: str, hours: float = 48) -> dict:
         return tracks.track(entity_id, hours=max(0.1, min(hours, 48)))
     except KeyError as exc:
         raise HTTPException(404, f"no track history for {entity_id}") from exc
+
+
+@app.get("/live/regions")
+def regions_geojson() -> dict:
+    """Region boundaries (geoBoundaries ADM1) for the danger-zone choropleth: static reference."""
+    return danger.regions_geojson()
+
+
+@app.get("/live/models/strike")
+def strike_model_cards() -> dict:
+    """Model cards of the danger models, verbatim (training data, split, scores vs baselines)."""
+    return danger.model_cards()
 
 
 @app.get("/live/snapshot")

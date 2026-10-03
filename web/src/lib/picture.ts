@@ -114,3 +114,41 @@ export async function loadAirfields() {
     airfields.error = `airfields unavailable: ${err}`
   }
 }
+
+/** Region boundaries for the danger-zone choropleth (static, from the live server). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const regionShapes: { features: any[]; loaded: boolean } = { features: [], loaded: false }
+
+export async function loadRegions() {
+  if (regionShapes.loaded) return
+  try {
+    const res = await fetch('/live/regions')
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const fc = await res.json()
+    // Feature ids match the live region entities so clicks select them.
+    regionShapes.features = fc.features.map((f: { id: string }) => ({ ...f, id: `region:${f.id}` }))
+    regionShapes.loaded = true
+  } catch {
+    // retried on the next map (re)load; the layer is simply absent meanwhile
+  }
+}
+
+/** Probability → colour: clear at 0, amber in the middle, red near 1. */
+export function dangerColor(p: number | null | undefined, alpha = 150): [number, number, number, number] {
+  if (p == null) return [100, 116, 139, 40]
+  const stops: [number, [number, number, number]][] = [
+    [0, [34, 197, 94]],
+    [0.35, [250, 204, 21]],
+    [0.65, [249, 115, 22]],
+    [1, [220, 38, 38]],
+  ]
+  for (let i = 1; i < stops.length; i++) {
+    if (p <= stops[i][0]) {
+      const [p0, c0] = stops[i - 1]
+      const [p1, c1] = stops[i]
+      const k = (p - p0) / (p1 - p0)
+      return [0, 1, 2].map((j) => Math.round(c0[j] + k * (c1[j] - c0[j]))).concat(Math.round(alpha * (0.35 + 0.65 * p))) as [number, number, number, number]
+    }
+  }
+  return [220, 38, 38, alpha]
+}

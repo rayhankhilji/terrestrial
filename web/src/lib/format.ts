@@ -50,6 +50,8 @@ export function kindLabel(e: Entity): string {
       return 'Port conditions'
     case 'net':
       return 'Net · inferred shared mission'
+    case 'region':
+      return e.props.alert_active ? 'Region · AIR-RAID ALERT NOW' : 'Region · danger forecast'
   }
 }
 
@@ -72,6 +74,9 @@ export function describe(e: Entity): string {
       return [e.props.country, e.props.qid].filter(Boolean).join(' · ')
     case 'station':
       return `waves ${num(e.props.wave_m, 1)} m · cloud ${num(e.props.cloud_pct)}% · wind ${num(e.props.wind_kmh)} km/h`
+    case 'region':
+      if (e.props.p_new != null) return `new alert next 6 h: ${Math.round(e.props.p_new * 100)}% (model estimate)`
+      return e.props.issued ? 'not modelled (no alert data: occupied)' : 'forecast pending'
     case 'net':
       return `${MISSION_LABELS[e.props.mission] ?? e.props.mission} · ${e.props.members.length} craft · ${(e.props.states as string[]).map((c) => c.toUpperCase()).join('/') || '—'}`
   }

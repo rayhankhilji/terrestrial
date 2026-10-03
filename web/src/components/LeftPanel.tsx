@@ -5,12 +5,14 @@ import { visible } from '../lib/picture'
 import { type LeftTab, select, ui, useStore } from '../lib/store'
 import { entityColor } from '../map/liveLayers'
 import { IntelList } from './IntelList'
+import { DangerPanel } from './DangerPanel'
 import { NetsPanel } from './NetsPanel'
 
 const TABS: { key: LeftTab; label: string; maritime?: boolean }[] = [
   { key: 'alerts', label: 'Alerts' },
   { key: 'live', label: 'Live' },
   { key: 'nets', label: 'Nets' },
+  { key: 'danger', label: 'Danger' },
   { key: 'vessels', label: 'Dark vessels', maritime: true },
 ]
 
@@ -34,6 +36,7 @@ export function LeftPanel() {
       {tab === 'alerts' && <Alerts />}
       {tab === 'live' && <LiveList />}
       {tab === 'nets' && <NetsPanel />}
+      {tab === 'danger' && <DangerPanel />}
       {tab === 'vessels' && <IntelList />}
     </aside>
   )
@@ -84,7 +87,7 @@ function LiveList() {
     const q = search.trim().toLowerCase()
     return [...live.entities.values()]
       .filter((e) => visible(e, { mode, states }))
-      .filter((e) => (e.kind !== 'facility' && e.kind !== 'net') || q)
+      .filter((e) => (e.kind !== 'facility' && e.kind !== 'net' && e.kind !== 'region') || q)
       .filter((e) => !q || e.label.toLowerCase().includes(q) || JSON.stringify(e.props).toLowerCase().includes(q))
       .sort((a, b) => {
         const k = KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind)

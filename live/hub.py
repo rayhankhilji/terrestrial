@@ -39,6 +39,7 @@ TTL_S = {
     "station": 3 * 3600,
     "facility": None,
     "net": None,  # removed explicitly by the nets engine when a net dissolves
+    "region": None,  # danger zones: one per Ukrainian region, always present
 }
 QUEUE_LIMIT = 20_000
 
