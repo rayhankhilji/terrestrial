@@ -42,14 +42,21 @@ def test_unobserved_gap_closes_open_alerts_and_splits_spans(tmp_path):
     assert len(spans) == 2
     (row,) = intervals.itertuples()
     assert row.end == pd.Timestamp(T0, unit="ms", tz="UTC")  # ended at our last observation, not invented
-    gap = unwatched_minutes(spans, pd.Timestamp(T0, unit="ms", tz="UTC"), pd.Timestamp(T0 + 2 * 3600_000, unit="ms", tz="UTC"))
+    gap = unwatched_minutes(
+        spans, pd.Timestamp(T0, unit="ms", tz="UTC"), pd.Timestamp(T0 + 2 * 3600_000, unit="ms", tz="UTC")
+    )
     assert 119 <= gap <= 120
 
 
 def test_merge_intervals_unions_overlaps_per_region():
     ts = lambda m: pd.Timestamp("2026-10-03", tz="UTC") + pd.Timedelta(minutes=m)  # noqa: E731
     df = pd.DataFrame(
-        [("UA-63", ts(0), ts(30)), ("UA-63", ts(20), ts(50)), ("UA-63", ts(60), ts(70)), ("UA-30", ts(0), ts(10))],
+        [
+            ("UA-63", ts(0), ts(30)),
+            ("UA-63", ts(20), ts(50)),
+            ("UA-63", ts(60), ts(70)),
+            ("UA-30", ts(0), ts(10)),
+        ],
         columns=["iso", "start", "end"],
     )
     out = merge_intervals(df)

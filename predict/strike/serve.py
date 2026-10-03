@@ -82,7 +82,9 @@ class Model:
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
         # Isotonic steps can reach exactly 0 or 1; no forecast of this kind is that certain.
-        return np.clip(self.calibrator.predict(self.model.predict_proba(X[F.FEATURES])[:, 1]), P_MIN, 1 - P_MIN)
+        return np.clip(
+            self.calibrator.predict(self.model.predict_proba(X[F.FEATURES])[:, 1]), P_MIN, 1 - P_MIN
+        )
 
 
 def load_models() -> dict[str, Model]:
