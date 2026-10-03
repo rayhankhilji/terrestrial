@@ -7,6 +7,7 @@ const ITEMS: { key: LayerKey; label: string; color: RGBA; note?: string; modes: 
   { key: 'aircraft', label: 'Military aircraft (ADS-B)', color: COLORS.military, modes: ['military', 'maritime'] },
   { key: 'vessels', label: 'Naval vessels (AIS)', color: COLORS.naval_ship, modes: ['military'] },
   { key: 'vessels', label: 'Vessels (AIS)', color: COLORS.vessel, modes: ['maritime'] },
+  { key: 'nets', label: 'Nets (inferred shared missions)', color: [45, 212, 191, 255], modes: ['military'] },
   { key: 'airfields', label: 'Military airfields', color: COLORS.airfield, modes: ['military', 'maritime'] },
   { key: 'smallFields', label: 'Private & small airfields', color: [100, 116, 139, 255], modes: ['military'] },
   { key: 'facilities', label: 'Air & naval bases (Wikidata)', color: COLORS.naval, modes: ['military'] },

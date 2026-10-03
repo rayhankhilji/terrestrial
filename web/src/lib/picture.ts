@@ -15,7 +15,30 @@ export function visible(e: Entity, s: Pick<UIState, 'mode' | 'states'>): boolean
   if (s.states.length && (e.kind === 'aircraft' || e.kind === 'vessel')) {
     return s.states.includes(e.props.state_code)
   }
+  if (s.states.length && e.kind === 'net') {
+    return (e.props.states as string[]).some((c) => s.states.includes(c))
+  }
   return true
+}
+
+export const MISSION_LABELS: Record<string, string> = {
+  air_refuelling: 'Air-to-air refuelling',
+  isr_orbit: 'ISR / AEW orbit',
+  maritime_patrol: 'Maritime patrol',
+  airlift: 'Airlift',
+  fighter_cap: 'Fighter CAP / escort',
+  rotary_ops: 'Rotary-wing operations',
+  training: 'Training',
+  vip_transport: 'VIP / staff transport',
+  unknown: 'Mission unclear',
+}
+
+/** Who a net belongs to, for grouping: a single state, or the coalition of states. */
+export function netOwner(e: Entity): string {
+  const states: string[] = e.props.states ?? []
+  if (states.length === 1) return e.props.org ?? states[0].toUpperCase()
+  if (states.length > 1) return `Coalition: ${states.map((c) => c.toUpperCase()).join(' + ')}`
+  return 'Unattributed'
 }
 
 export const ROLE_LABELS: Record<string, string> = {

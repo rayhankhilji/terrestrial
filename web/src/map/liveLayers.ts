@@ -1,6 +1,6 @@
 import type { Layer, PickingInfo } from '@deck.gl/core'
 import { PathStyleExtension, type PathStyleExtensionProps } from '@deck.gl/extensions'
-import { LineLayer, PathLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers'
+import { LineLayer, PathLayer, PolygonLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers'
 import { SimpleMeshLayer } from '@deck.gl/mesh-layers'
 import { ahead, type Entity, live, projected } from '../lib/live'
 import { type Airfield, airfields, visible } from '../lib/picture'
@@ -98,6 +98,22 @@ export function entityColor(e: Entity): RGBA {
   }
 }
 
+export const MISSION_COLORS: Record<string, RGBA> = {
+  air_refuelling: [45, 212, 191, 255],
+  isr_orbit: [251, 191, 36, 255],
+  maritime_patrol: [56, 189, 248, 255],
+  airlift: [147, 197, 253, 255],
+  fighter_cap: [248, 113, 113, 255],
+  rotary_ops: [163, 230, 53, 255],
+  training: [203, 213, 225, 255],
+  vip_transport: [196, 181, 253, 255],
+  unknown: [226, 232, 240, 255],
+}
+
+export function netColor(e: Entity): RGBA {
+  return MISSION_COLORS[e.props.mission] ?? MISSION_COLORS.unknown
+}
+
 const RELATION_COLORS: Record<string, RGBA> = {
   THERMAL_ANOMALY_AT: [255, 122, 48, 220],
   REPORTED_AT: [167, 139, 250, 200],
@@ -147,6 +163,7 @@ export function liveLayers({ zoom, now, ui, onClick, onHover }: Context): Layer[
   const fires = L.fires ? by('fire') : []
   const news = L.news ? by('news') : []
   const stations = L.stations ? by('station') : []
+  const nets = L.nets ? by('net') : []
   const fields = airfields.all.filter((a) => (a.military ? L.airfields : L.smallFields && (a.kind === 'small_airport' || a.kind === 'heliport')))
   const altK = altitudeScale(zoom)
   // Meshes are in metres. Scale them to a legible on-screen size (~24 px aircraft, ~18 px
@@ -232,6 +249,71 @@ export function liveLayers({ zoom, now, ui, onClick, onHover }: Context): Layer[
         getLineColor: (e) => (e.props.occupied_ua ? [244, 63, 94, 160] : [226, 232, 240, 110]),
         parameters: ON_TOP,
         ...common,
+      }),
+    )
+  }
+
+  // Nets: a hull over each group's recent tracks and a line for every evidence link.
+  if (nets.length) {
+    const memberLinks = nets.flatMap((n) =>
+      (n.props.links as { a: string; b: string; w: number }[])
+        .map((l) => ({ net: n, a: live.entities.get(l.a), b: live.entities.get(l.b), w: l.w }))
+        .filter((l): l is { net: Entity; a: Entity; b: Entity; w: number } => !!l.a && !!l.b),
+    )
+    layers.push(
+      new PolygonLayer<Entity>({
+        id: 'net-hulls',
+        data: nets.filter((n) => n.props.hull?.length > 3),
+        getPolygon: (n) => n.props.hull,
+        getFillColor: (n) => {
+          const c = netColor(n)
+          return [c[0], c[1], c[2], ui.selected === n.id ? 55 : 28]
+        },
+        getLineColor: (n) => {
+          const c = netColor(n)
+          return [c[0], c[1], c[2], 200]
+        },
+        getLineWidth: (n) => (ui.selected === n.id ? 2.5 : 1.5),
+        lineWidthUnits: 'pixels',
+        stroked: true,
+        filled: true,
+        parameters: ON_TOP,
+        updateTriggers: { getFillColor: ui.selected, getLineWidth: ui.selected },
+        ...common,
+      }),
+      new LineLayer<{ net: Entity; a: Entity; b: Entity; w: number }>({
+        id: 'net-links',
+        data: memberLinks,
+        getSourcePosition: (l) => pos(l.a),
+        getTargetPosition: (l) => pos(l.b),
+        getColor: (l) => {
+          const c = netColor(l.net)
+          return [c[0], c[1], c[2], Math.round(120 + 135 * l.w)]
+        },
+        getWidth: (l) => 1 + 2 * l.w,
+        widthUnits: 'pixels',
+        parameters: ON_TOP,
+        updateTriggers: { getSourcePosition: now, getTargetPosition: now },
+      }),
+      new TextLayer<Entity>({
+        id: 'net-labels',
+        data: nets,
+        getPosition: (n) => {
+          const ring: [number, number][] = n.props.hull ?? []
+          const top = ring.reduce((m, p) => (p[1] > m[1] ? p : m), [n.lon, n.lat] as [number, number])
+          return [n.lon, top[1]]
+        },
+        getText: (n) => `${n.label.toUpperCase()} · ${(n.props.states as string[]).map((c) => c.toUpperCase()).join('+')}`,
+        getSize: 12,
+        sizeUnits: 'pixels',
+        getColor: netColor,
+        getPixelOffset: [0, -10],
+        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+        fontWeight: 700,
+        outlineWidth: 3,
+        outlineColor: [2, 6, 12, 230],
+        fontSettings: { sdf: true },
+        parameters: { ...ON_TOP, cullMode: 'none' as const },
       }),
     )
   }

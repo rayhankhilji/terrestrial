@@ -38,6 +38,7 @@ TTL_S = {
     "news": 24 * 3600,
     "station": 3 * 3600,
     "facility": None,
+    "net": None,  # removed explicitly by the nets engine when a net dissolves
 }
 QUEUE_LIMIT = 20_000
 
@@ -148,6 +149,10 @@ class Hub:
             for eid, e in self.entities.items()
             if (ttl := TTL_S.get(e["kind"])) is not None and now - e["rx"] > ttl * 1000
         ]
+        self.remove(dead)
+
+    def remove(self, ids: list[str]) -> None:
+        dead = [eid for eid in ids if eid in self.entities]
         for eid in dead:
             self.kinds.get(self.entities[eid]["kind"], set()).discard(eid)
             del self.entities[eid]

@@ -1,4 +1,4 @@
-import { ROLE_LABELS } from './picture'
+import { MISSION_LABELS, ROLE_LABELS } from './picture'
 import type { Entity } from './live'
 
 export function ago(ts: number, now = Date.now()): string {
@@ -48,6 +48,8 @@ export function kindLabel(e: Entity): string {
       return `Facility · ${e.props.type}`
     case 'station':
       return 'Port conditions'
+    case 'net':
+      return 'Net · inferred shared mission'
   }
 }
 
@@ -70,6 +72,8 @@ export function describe(e: Entity): string {
       return [e.props.country, e.props.qid].filter(Boolean).join(' · ')
     case 'station':
       return `waves ${num(e.props.wave_m, 1)} m · cloud ${num(e.props.cloud_pct)}% · wind ${num(e.props.wind_kmh)} km/h`
+    case 'net':
+      return `${MISSION_LABELS[e.props.mission] ?? e.props.mission} · ${e.props.members.length} craft · ${(e.props.states as string[]).map((c) => c.toUpperCase()).join('/') || '—'}`
   }
 }
 

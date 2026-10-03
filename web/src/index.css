@@ -1019,3 +1019,14 @@ button.link {
 .evidence li {
   margin: 2px 0;
 }
+
+.net-group {
+  padding: 8px 0 4px;
+  border-bottom: 1px solid var(--line);
+}
+.net-owner {
+  font-weight: 700;
+  font-size: 0.86rem;
+  padding: 2px 14px 6px;
+  letter-spacing: 0.02em;
+}

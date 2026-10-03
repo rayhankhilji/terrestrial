@@ -19,7 +19,7 @@ from pathlib import Path
 
 from fastapi import Body, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 
-from live import replay
+from live import nets, replay
 from live.correlate import Correlator
 from live.hub import Hub, now_ms
 from live.sentinels import SentinelEngine
@@ -39,6 +39,7 @@ REPLAY = os.environ.get("LIVE_REPLAY", "").strip()
 hub = Hub(record_dir=None if REPLAY else LIVE_DIR)
 sentinels = SentinelEngine()
 tracks = TrackStore()
+net_engine = nets.NetsEngine(tracks)
 
 
 async def supervise(name: str, run) -> None:
@@ -83,6 +84,7 @@ async def lifespan(_: FastAPI):
             for src in (adsb, weather, gdelt, ais, firms)
         ]
     tasks.append(asyncio.create_task(_expire_loop()))
+    tasks.append(asyncio.create_task(nets.run(hub, net_engine)))
     try:
         yield
     finally:

@@ -38,6 +38,7 @@ export type LayerKey =
   | 'aircraft'
   | 'airfields'
   | 'smallFields'
+  | 'nets'
   | 'vessels'
   | 'fires'
   | 'news'
@@ -52,7 +53,7 @@ export type LayerKey =
   | 'encounters'
   | 'loitering'
   | 'portVisits'
-export type LeftTab = 'alerts' | 'live' | 'vessels' | 'highlights'
+export type LeftTab = 'alerts' | 'live' | 'nets' | 'vessels' | 'highlights'
 
 export interface FlyTo {
   lon: number
@@ -90,6 +91,7 @@ export const ui = createStore<UIState>({
     aircraft: true,
     airfields: true,
     smallFields: false,
+    nets: true,
     vessels: true,
     fires: true,
     news: true,
