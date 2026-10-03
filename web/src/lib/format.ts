@@ -54,6 +54,8 @@ export function kindLabel(e: Entity): string {
       return e.props.alert_active ? 'Region · AIR-RAID ALERT NOW' : 'Region · danger forecast'
     case 'gnss':
       return `GNSS interference · ${e.props.level}`
+    case 'front':
+      return 'Front line · DeepStateMap'
   }
 }
 
@@ -79,6 +81,8 @@ export function describe(e: Entity): string {
     case 'region':
       if (e.props.p_new != null) return `new alert next 6 h: ${Math.round(e.props.p_new * 100)}% (model estimate)`
       return e.props.issued ? 'not modelled (no alert data: occupied)' : 'forecast pending'
+    case 'front':
+      return `${Math.round(e.props.occupied_km2).toLocaleString()} km² occupied · front ~${e.props.front_km} km · snapshot ${e.props.datetime}`
     case 'gnss':
       return `${e.props.degraded} of ${e.props.aircraft} aircraft with degraded GPS accuracy, last ${e.props.window_min} min (consistent with jamming; evidence, not proof)`
     case 'net':

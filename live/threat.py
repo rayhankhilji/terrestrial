@@ -75,7 +75,9 @@ def _bearing(lon1: float, lat1: float, lon2: float, lat2: float) -> float:
     return (math.degrees(math.atan2(y, x)) + 360) % 360
 
 
-def score(e: dict, ukraine: Ukraine, nets_of: dict[str, dict], gnss: GnssGrid | None, now: int) -> dict:
+def score(
+    e: dict, ukraine: Ukraine, nets_of: dict[str, dict], gnss: GnssGrid | None, now: int, front=None
+) -> dict:
     """Breakdown for one aircraft or vessel entity."""
     p = e.get("props") or {}
     w = THREAT
@@ -115,6 +117,14 @@ def score(e: dict, ukraine: Ukraine, nets_of: dict[str, dict], gnss: GnssGrid | 
         add("threat", w.near_ukraine_150km, where)
     elif dist <= 300:
         add("threat", w.near_ukraine_300km, where)
+    if front is not None:
+        to_front = front.distance_km(e["lon"], e["lat"])
+        if to_front <= 50:
+            add("threat", w.near_front_50km, f"{to_front:.0f} km from the front line (DeepState)")
+        elif to_front <= 150:
+            add("threat", w.near_front_150km, f"{to_front:.0f} km from the front line (DeepState)")
+        if front.occupied_contains(e["lon"], e["lat"]):
+            add("intel", w.over_occupied, "over occupied Ukraine (DeepState)")
     hdg, spd = e.get("hdg"), e.get("spd") or 0
     if 0 < dist <= INBOUND_MAX_KM and hdg is not None and spd > 100:
         off = abs((_bearing(e["lon"], e["lat"], blon, blat) - hdg + 180) % 360 - 180)
@@ -178,8 +188,9 @@ def score(e: dict, ukraine: Ukraine, nets_of: dict[str, dict], gnss: GnssGrid | 
 
 
 class ThreatBoard:
-    def __init__(self, gnss: GnssGrid | None = None):
+    def __init__(self, gnss: GnssGrid | None = None, front=None):
         self.gnss = gnss
+        self.front = front  # live.front.FrontLine (DeepState), optional
         self.ukraine: Ukraine | None = None
 
     def update(self, hub: Hub, now: int) -> int:
@@ -194,7 +205,7 @@ class ThreatBoard:
             for e in list(hub.of_kind(kind)):
                 if not (e.get("props") or {}).get("military"):
                     continue
-                s = score(e, self.ukraine, nets_of, self.gnss, now)
+                s = score(e, self.ukraine, nets_of, self.gnss, now, self.front.front if self.front else None)
                 prev = (e.get("props") or {}).get("threat")
                 if prev is None or {k: prev.get(k) for k in s} != s:
                     hub.annotate(e["id"], "threat", s)

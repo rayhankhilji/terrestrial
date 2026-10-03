@@ -152,3 +152,29 @@ export function dangerColor(p: number | null | undefined, alpha = 150): [number,
   }
   return [220, 38, 38, alpha]
 }
+
+/** DeepState front line, occupied territory and markers (from /live/front), refetched when the
+ * live `front` entity reports a new snapshot. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const frontShapes: { areas: any[]; lines: any[]; points: any[]; snapshot: number | null } = { areas: [], lines: [], points: [], snapshot: null }
+let frontLoading = false
+
+export async function loadFront(snapshot: number | null) {
+  if (frontLoading || (snapshot != null && snapshot === frontShapes.snapshot)) return
+  frontLoading = true
+  try {
+    const res = await fetch('/live/front')
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const fc = await res.json()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const by = (layer: string) => fc.features.filter((f: any) => f.properties.layer === layer)
+    frontShapes.areas = [...by('unknown'), ...by('occupied')]
+    frontShapes.lines = by('front')
+    frontShapes.points = [...by('attack_direction'), ...by('unit'), ...by('airfield')]
+    frontShapes.snapshot = fc.snapshot
+  } catch {
+    // the layer stays as it was; the deepstate status pill shows why
+  } finally {
+    frontLoading = false
+  }
+}

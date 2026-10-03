@@ -19,7 +19,7 @@ from pathlib import Path
 
 from fastapi import Body, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 
-from live import danger, destinations, gnss, nets, replay, threat
+from live import danger, destinations, front, gnss, nets, replay, threat
 from live.correlate import Correlator
 from live.hub import Hub, now_ms
 from live.sentinels import SentinelEngine
@@ -45,7 +45,8 @@ alert_log = air_alerts.AlertLog()
 danger_zones = danger.DangerZones(alert_log)
 flight_dest = destinations.Destinations(tracks)
 gnss_grid = gnss.GnssGrid()
-threat_board = threat.ThreatBoard(gnss_grid)
+front_line = front.FrontLine()
+threat_board = threat.ThreatBoard(gnss_grid, front_line)
 
 
 async def supervise(name: str, run) -> None:
@@ -97,6 +98,7 @@ async def lifespan(_: FastAPI):
     )
     tasks.append(asyncio.create_task(supervise(gnss.NAME, lambda h: gnss.run(h, gnss_grid))))
     tasks.append(asyncio.create_task(supervise(threat.NAME, lambda h: threat.run(h, threat_board))))
+    tasks.append(asyncio.create_task(supervise(front.NAME, lambda h: front.run(h, front_line))))
     if not REPLAY:
         tasks.append(
             asyncio.create_task(
@@ -167,6 +169,15 @@ def flight_model_card() -> dict:
     if flight_dest.predictor is None:
         raise HTTPException(503, "no trained flight model")
     return flight_dest.predictor.model.card
+
+
+@app.get("/live/front")
+def front_geojson() -> dict:
+    """DeepStateMap front line, occupied territory, grey zone, attack directions, estimated
+    Russian unit positions and the airfields Russia operates from (GeoJSON)."""
+    if front_line.geojson is None:
+        raise HTTPException(503, "no DeepState snapshot loaded yet")
+    return front_line.geojson
 
 
 @app.get("/live/regions")

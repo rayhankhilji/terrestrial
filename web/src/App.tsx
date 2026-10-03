@@ -20,7 +20,7 @@ export default function App() {
         <Inspector />
       </main>
       <footer className="footer">
-        Data: ADS-B (adsb.fi, adsb.lol), ADS-B Exchange DB, OurAirports, air-raid alerts (Vadimkin dataset, ubilling.net.ua), VIINA 2.0, geoBoundaries,
+        Data: ADS-B (adsb.fi, adsb.lol), ADS-B Exchange DB, OurAirports, air-raid alerts (Vadimkin dataset, ubilling.net.ua), VIINA 2.0, DeepStateMap.Live, adsb.lol archive (ODbL), Natural Earth, geoBoundaries,
         Open-Meteo, GDELT, NASA FIRMS, Wikidata, OpenSanctions, Global Fishing Watch, OpenStreetMap. Model estimates and inferred groupings —
         candidate findings, not conclusions.
       </footer>

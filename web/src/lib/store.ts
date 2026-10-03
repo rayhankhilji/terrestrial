@@ -50,6 +50,8 @@ export type LayerKey =
   | 'forecast'
   | 'predictions'
   | 'gnss'
+  | 'front'
+  | 'units'
   | 'aois'
   | 'gaps'
   | 'sar'
@@ -108,6 +110,8 @@ export const ui = createStore<UIState>({
     forecast: true,
     predictions: true,
     gnss: true,
+    front: true,
+    units: false,
     aois: true,
     gaps: true,
     sar: true,

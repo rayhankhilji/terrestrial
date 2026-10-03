@@ -100,6 +100,9 @@ class ThreatWeights:
     near_ukraine_50km: int = 20
     near_ukraine_150km: int = 12
     near_ukraine_300km: int = 6
+    near_front_50km: int = 12
+    near_front_150km: int = 6
+    over_occupied: int = 10
     inbound_to_ukraine: int = 10
     destination_near_ukraine: int = 5
     emergency_squawk: int = 25

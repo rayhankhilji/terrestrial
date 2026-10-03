@@ -69,7 +69,11 @@ export default function MapView() {
       const picked = info.object as (Entity & Partial<Airfield>) | undefined
       // Region polygons carry only an id: show the live region entity behind them.
       const o = picked?.id ? ((live.entities.get(picked.id) as (Entity & Partial<Airfield>) | undefined) ?? picked) : picked
-      if (o?.id && o.kind) setHover({ x: info.x, y: info.y, kind: kindLabel(o), title: o.label, sub: describe(o) })
+      if ((o?.kind as string) === 'deepstate') {
+        const layer = o!.props.layer as string
+        const what = layer === 'unit' ? 'Russian unit · estimated position' : layer === 'airfield' ? 'Airfield used by Russia' : 'Direction of attack'
+        setHover({ x: info.x, y: info.y, kind: what, title: o!.label, sub: 'DeepStateMap.Live (OSINT estimate)' })
+      } else if (o?.id && o.kind) setHover({ x: info.x, y: info.y, kind: kindLabel(o), title: o.label, sub: describe(o) })
       else if (o?.ident) {
         const a = o as unknown as Airfield
         const sub = [a.icao ?? a.ident, a.country, a.kind.replace('_', ' '), a.military_rule && `matched “${a.military_rule}”`]

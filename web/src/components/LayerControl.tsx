@@ -18,6 +18,8 @@ const ITEMS: { key: LayerKey; label: string; color: RGBA; note?: string; modes: 
   { key: 'stations', label: 'Port conditions', color: COLORS.station, modes: ['maritime'] },
   { key: 'relations', label: 'Inferred links', color: [255, 255, 255, 255], modes: ['military', 'maritime'] },
   { key: 'trails', label: 'Track history', color: [148, 163, 184, 255], modes: ['military', 'maritime'] },
+  { key: 'front', label: 'Front line & occupied territory', color: [255, 214, 10, 255], note: 'DeepStateMap', modes: ['military', 'maritime'] },
+  { key: 'units', label: 'Russian units & airfields', color: [251, 113, 133, 255], note: 'DeepState estimate', modes: ['military'] },
   { key: 'gnss', label: 'GNSS interference', color: [244, 63, 94, 255], note: 'from ADS-B accuracy', modes: ['military', 'maritime'] },
   { key: 'predictions', label: 'Predicted landing', color: [56, 189, 248, 255], note: 'model estimate', modes: ['military'] },
   { key: 'forecast', label: 'Projected course', color: [148, 163, 184, 255], note: 'model estimate', modes: ['military', 'maritime'] },

@@ -40,7 +40,8 @@ TTL_S = {
     "facility": None,
     "net": None,  # removed explicitly by the nets engine when a net dissolves
     "region": None,  # danger zones: one per Ukrainian region, always present
-    "gnss": None,  # interference cells: replaced wholesale by the GNSS grid
+    "gnss": None,
+    "front": None,  # interference cells: replaced wholesale by the GNSS grid
 }
 QUEUE_LIMIT = 20_000
 

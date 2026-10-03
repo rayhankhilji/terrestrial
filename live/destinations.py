@@ -25,6 +25,8 @@ log = logging.getLogger("terrestrial.live")
 NAME = "flight-model"
 EVERY_S = 10
 REROUTE_P = 0.35
+CONFIRM_TICKS = 3
+REROUTE_COOLDOWN_MS = 15 * 60 * 1000
 RELOAD_CHECK_S = 120
 
 
@@ -32,6 +34,9 @@ class Destinations:
     def __init__(self, store: TrackStore):
         self.store = store
         self.predictor: Predictor | None = None
+        self.settled: dict[str, dict] = {}
+        self.pending: dict[str, tuple[str, int]] = {}
+        self.last_alert: dict[str, int] = {}
 
     def load(self) -> bool:
         model = FlightModel.load()
@@ -63,6 +68,31 @@ class Destinations:
             },
         }
 
+    def _confirm(self, eid: str, compact: dict, now: int) -> dict | None:
+        """The previously settled prediction if the most likely field has *settled* on a new one:
+        the new field must lead for CONFIRM_TICKS updates in a row with p ≥ REROUTE_P, and an
+        aircraft raises at most one re-route per REROUTE_COOLDOWN_MS. Two near-equal fields
+        swapping the lead every few seconds is uncertainty, not a re-route."""
+        settled = self.settled.get(eid)
+        if settled is None or compact["p"] < REROUTE_P:
+            if settled is None and compact["p"] >= REROUTE_P:
+                self.settled[eid] = compact
+            self.pending.pop(eid, None)
+            return None
+        if compact["dest"] == settled["dest"]:
+            self.settled[eid] = compact
+            self.pending.pop(eid, None)
+            return None
+        dest, ticks = self.pending.get(eid, (None, 0))
+        ticks = ticks + 1 if dest == compact["dest"] else 1
+        self.pending[eid] = (compact["dest"], ticks)
+        if ticks < CONFIRM_TICKS or now - self.last_alert.get(eid, 0) < REROUTE_COOLDOWN_MS:
+            return None
+        self.settled[eid] = compact
+        self.pending.pop(eid, None)
+        self.last_alert[eid] = now
+        return settled
+
     async def update(self, hub: Hub) -> int:
         """Runs on the event loop (hub writes are not thread-safe), yielding between aircraft."""
         if self.predictor is None:
@@ -85,16 +115,11 @@ class Destinations:
             if pred is None:
                 hub.annotate(e["id"], "pred", None)
                 continue
-            before = props.get("pred") or {}
             compact = pred.compact()
             hub.annotate(e["id"], "pred", compact)
             n += 1
-            if (
-                before.get("dest")
-                and before["dest"] != compact["dest"]
-                and before.get("p", 0) >= REROUTE_P
-                and compact["p"] >= REROUTE_P
-            ):
+            before = self._confirm(e["id"], compact, now)
+            if before is not None:
                 hub.annotate(e["id"], "reroute_at", now)
                 hub.alert(
                     {

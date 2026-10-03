@@ -90,7 +90,7 @@ function LiveList() {
     const q = search.trim().toLowerCase()
     return [...live.entities.values()]
       .filter((e) => visible(e, { mode, states }))
-      .filter((e) => (e.kind !== 'facility' && e.kind !== 'net' && e.kind !== 'region' && e.kind !== 'gnss') || q)
+      .filter((e) => (e.kind !== 'facility' && e.kind !== 'net' && e.kind !== 'region' && e.kind !== 'gnss' && e.kind !== 'front') || q)
       .filter((e) => !q || e.label.toLowerCase().includes(q) || JSON.stringify(e.props).toLowerCase().includes(q))
       .sort((a, b) => {
         const k = KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind)

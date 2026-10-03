@@ -3,7 +3,7 @@ import { PathStyleExtension, type PathStyleExtensionProps } from '@deck.gl/exten
 import { GeoJsonLayer, LineLayer, PathLayer, PolygonLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers'
 import { SimpleMeshLayer } from '@deck.gl/mesh-layers'
 import { ahead, type Entity, live, projected } from '../lib/live'
-import { type Airfield, airfields, dangerColor, regionShapes, visible } from '../lib/picture'
+import { type Airfield, airfields, dangerColor, frontShapes, loadFront, regionShapes, visible } from '../lib/picture'
 import type { UIState } from '../lib/store'
 import { DEST_COLORS, type Destination, type Flight, predState, type Terminal, trackState } from '../lib/track'
 import { aircraftMesh, helicopterMesh, shipMesh, uavMesh } from './meshes'
@@ -42,6 +42,33 @@ const MESH_MIN_ZOOM = 5.5
 const ALERT_RIPPLE_MS = 12000
 const DASH = new PathStyleExtension({ dash: true })
 const ON_TOP = { depthCompare: 'always' as const, depthWriteEnabled: false }
+
+interface FrontPolygon {
+  layer: string
+  rings: [number, number][][]
+}
+let frontCache: { snapshot: number | null; polygons: FrontPolygon[]; paths: [number, number][][] } = { snapshot: null, polygons: [], paths: [] }
+/** DeepState geometries flattened once per snapshot into plain polygons and paths. */
+function frontGeometry() {
+  if (frontCache.snapshot !== frontShapes.snapshot) {
+    const polygons: FrontPolygon[] = []
+    for (const f of frontShapes.areas) {
+      const g = f.geometry
+      const polys = g.type === 'Polygon' ? [g.coordinates] : g.type === 'MultiPolygon' ? g.coordinates : []
+      for (const rings of polys) polygons.push({ layer: f.properties.layer, rings })
+    }
+    const paths: [number, number][][] = []
+    for (const f of frontShapes.lines) {
+      const g = f.geometry
+      if (g.type === 'LineString') paths.push(g.coordinates)
+      else if (g.type === 'MultiLineString') paths.push(...g.coordinates)
+    }
+    frontCache = { snapshot: frontShapes.snapshot, polygons, paths }
+  }
+  return frontCache
+}
+const frontPolygons = () => frontGeometry().polygons
+const frontPaths = () => frontGeometry().paths
 
 /** Aircraft colour by role group: what it is doing matters more than who flies it. */
 export function aircraftColor(e: Entity): RGBA {
@@ -178,6 +205,21 @@ export function liveLayers({ zoom, now, ui, onClick, onHover }: Context): Layer[
   const common = { pickable: true, onClick, onHover }
   const layers: Layer[] = []
 
+  // Occupied territory and grey zone (DeepStateMap) sit under the danger choropleth; the front
+  // line itself is drawn above it further down.
+  if (L.front && frontShapes.snapshot != null) {
+    layers.push(
+      new PolygonLayer<FrontPolygon>({
+        id: 'front-areas',
+        data: frontPolygons(),
+        getPolygon: (p) => p.rings,
+        getFillColor: (p) => (p.layer === 'occupied' ? [220, 38, 38, 60] : [148, 163, 184, 70]),
+        stroked: false,
+        parameters: ON_TOP,
+      }),
+    )
+  }
+
   // Danger zones: region choropleth of the model's probability of a new air-raid alert in the
   // current 6-hour block; regions under an alert right now get a bright red outline.
   if (L.danger && regionShapes.loaded) {
@@ -201,6 +243,57 @@ export function liveLayers({ zoom, now, ui, onClick, onHover }: Context): Layer[
         onHover,
         parameters: ON_TOP,
         updateTriggers: { getFillColor: [live.version, ui.selected], getLineColor: now, getLineWidth: live.version },
+      }),
+    )
+  }
+
+  // Front line (DeepStateMap): occupied territory, grey zone, the line itself, and on demand
+  // attack directions, estimated Russian unit positions and the airfields Russia operates from.
+  const frontEntity = live.entities.get('front:deepstate')
+  if (frontEntity && frontEntity.props.snapshot !== frontShapes.snapshot) void loadFront(frontEntity.props.snapshot)
+  if (L.front && frontShapes.snapshot != null) {
+    layers.push(
+      // Dark casing under a bright line, so the front reads over the red danger choropleth.
+      new PathLayer<[number, number][]>({
+        id: 'front-line-casing',
+        data: frontPaths(),
+        getPath: (p) => p,
+        getColor: [2, 6, 12, 220],
+        getWidth: 6,
+        widthUnits: 'pixels',
+        parameters: ON_TOP,
+      }),
+      new PathLayer<[number, number][]>({
+        id: 'front-line',
+        data: frontPaths(),
+        getPath: (p) => p,
+        getColor: [255, 214, 10, 255],
+        getWidth: 2.5,
+        widthUnits: 'pixels',
+        parameters: ON_TOP,
+      }),
+    )
+  }
+  if (L.units && frontShapes.snapshot != null) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    type P = any
+    layers.push(
+      new ScatterplotLayer<P>({
+        id: 'front-points',
+        data: frontShapes.points,
+        getPosition: (f: P) => f.geometry.coordinates,
+        getRadius: (f: P) => (f.properties.layer === 'airfield' ? 6 : f.properties.layer === 'unit' ? 3.5 : 5),
+        radiusUnits: 'pixels',
+        stroked: true,
+        lineWidthMinPixels: 1.5,
+        getFillColor: (f: P) => (f.properties.layer === 'airfield' ? [2, 6, 12, 230] : f.properties.layer === 'unit' ? [251, 113, 133, 200] : [255, 69, 58, 230]),
+        getLineColor: (f: P) => (f.properties.layer === 'airfield' ? [251, 113, 133, 255] : [2, 6, 12, 230]),
+        pickable: true,
+        onHover: (info) => {
+          const f = info.object as P
+          onHover({ ...info, object: f ? { id: `deepstate:${f.properties.key ?? 'attack'}`, kind: 'deepstate', label: f.properties.name ?? 'Direction of attack', props: f.properties } : undefined })
+        },
+        parameters: ON_TOP,
       }),
     )
   }
