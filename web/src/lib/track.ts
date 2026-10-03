@@ -67,3 +67,88 @@ function follow(selected: string | null) {
 }
 
 ui.subscribe(() => follow(ui.get().selected))
+
+/** Colours of the 1st, 2nd and 3rd most likely destination (panel and globe). */
+export const DEST_COLORS: [number, number, number][] = [
+  [56, 189, 248],
+  [167, 139, 250],
+  [148, 163, 184],
+]
+
+/** One predicted destination: [lon, lat, alt m, seconds from now] along the path. */
+export interface Destination {
+  ident: string
+  name: string
+  icao: string | null
+  lon: number
+  lat: number
+  country: string
+  military: boolean
+  p: number
+  dist_km: number
+  course: number
+  gs_route_kn: number
+  eta_min: number
+  path?: [number, number, number, number][]
+}
+
+export interface Reroute {
+  at: number
+  from: string
+  to: string
+  p_from: number
+  p_to: number
+}
+
+export interface Prediction {
+  at: number
+  destinations: Destination[]
+  on_station: boolean
+  elapsed_min: number
+  endurance_min: number
+  origin: string | null
+  candidates: number
+  winds: { level_hpa: number; speed_kn: number; from_deg: number } | null
+  changes: Reroute[]
+  model: { version: string; beats_baselines: boolean | null }
+}
+
+interface PredState {
+  id: string | null
+  data: Prediction | null
+  error: string | null
+}
+
+/** Destination forecast of the selected aircraft, from /live/predict (re-routed every few seconds). */
+export const predState = createStore<PredState>({ id: null, data: null, error: null })
+
+const PREDICT_MS = 5_000
+let predTimer: ReturnType<typeof setInterval> | null = null
+
+async function loadPrediction(id: string) {
+  try {
+    const res = await fetch(`/live/predict/${encodeURIComponent(id)}`)
+    if (predState.get().id !== id) return
+    if (res.status === 404 || res.status === 503) {
+      const body = await res.json().catch(() => ({}))
+      return predState.set({ data: null, error: body.detail ?? `HTTP ${res.status}` })
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    predState.set({ data: (await res.json()) as Prediction, error: null })
+  } catch (err) {
+    if (predState.get().id === id) predState.set({ error: `Prediction unavailable: ${err}` })
+  }
+}
+
+function followPrediction(selected: string | null) {
+  if (selected === predState.get().id) return
+  if (predTimer) clearInterval(predTimer)
+  predTimer = null
+  const aircraft = selected?.startsWith('aircraft:') ? selected : null
+  predState.set({ id: aircraft, data: null, error: null })
+  if (!aircraft) return
+  void loadPrediction(aircraft)
+  predTimer = setInterval(() => void loadPrediction(aircraft), PREDICT_MS)
+}
+
+ui.subscribe(() => followPrediction(ui.get().selected))

@@ -77,6 +77,9 @@ def to_entity(ac: dict, received_at: float, mil: Classification) -> dict | None:
             # Position integrity (NIC) and accuracy (NACp): inputs to GPS-interference detection.
             "nic": ac.get("nic"),
             "nac_p": ac.get("nac_p"),
+            # Where the position came from: "adsb_icao" (the aircraft's own GNSS), "mlat"
+            # (multilateration by receivers: speeds are unreliable), "tisb_…", "adsr_…".
+            "pos_source": ac.get("type"),
         },
     }
 
@@ -93,6 +96,8 @@ async def _poll(
     for ac in body.get("ac") or body.get("aircraft") or []:
         if float(ac.get("seen_pos") or 0) > MAX_SEEN_S:
             continue
+        for observe in hub.raw_observers:
+            observe(ac, received_at)
         entity = to_entity(ac, received_at, classify(ac, military))
         if entity is None or not _in_area(entity["lat"], entity["lon"]):
             continue

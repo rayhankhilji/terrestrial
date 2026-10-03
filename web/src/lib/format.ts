@@ -52,6 +52,8 @@ export function kindLabel(e: Entity): string {
       return 'Net · inferred shared mission'
     case 'region':
       return e.props.alert_active ? 'Region · AIR-RAID ALERT NOW' : 'Region · danger forecast'
+    case 'gnss':
+      return `GNSS interference · ${e.props.level}`
   }
 }
 
@@ -77,6 +79,8 @@ export function describe(e: Entity): string {
     case 'region':
       if (e.props.p_new != null) return `new alert next 6 h: ${Math.round(e.props.p_new * 100)}% (model estimate)`
       return e.props.issued ? 'not modelled (no alert data: occupied)' : 'forecast pending'
+    case 'gnss':
+      return `${e.props.degraded} of ${e.props.aircraft} aircraft with degraded GPS accuracy, last ${e.props.window_min} min (consistent with jamming; evidence, not proof)`
     case 'net':
       return `${MISSION_LABELS[e.props.mission] ?? e.props.mission} · ${e.props.members.length} craft · ${(e.props.states as string[]).map((c) => c.toUpperCase()).join('/') || '—'}`
   }

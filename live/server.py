@@ -19,7 +19,7 @@ from pathlib import Path
 
 from fastapi import Body, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 
-from live import danger, destinations, nets, replay
+from live import danger, destinations, gnss, nets, replay, threat
 from live.correlate import Correlator
 from live.hub import Hub, now_ms
 from live.sentinels import SentinelEngine
@@ -44,6 +44,8 @@ net_engine = nets.NetsEngine(tracks)
 alert_log = air_alerts.AlertLog()
 danger_zones = danger.DangerZones(alert_log)
 flight_dest = destinations.Destinations(tracks)
+gnss_grid = gnss.GnssGrid()
+threat_board = threat.ThreatBoard(gnss_grid)
 
 
 async def supervise(name: str, run) -> None:
@@ -77,6 +79,7 @@ async def lifespan(_: FastAPI):
         # Before any source starts, so the rebuild never races live appends.
         await asyncio.to_thread(tracks.rebuild, LIVE_DIR)
     hub.listeners.append(tracks)
+    hub.raw_observers.append(gnss_grid.observe)
     hub.listeners.append(Correlator(facilities))
     hub.listeners.append(sentinels)
     if REPLAY:
@@ -92,6 +95,8 @@ async def lifespan(_: FastAPI):
     tasks.append(
         asyncio.create_task(supervise(destinations.NAME, lambda h: destinations.run(h, flight_dest)))
     )
+    tasks.append(asyncio.create_task(supervise(gnss.NAME, lambda h: gnss.run(h, gnss_grid))))
+    tasks.append(asyncio.create_task(supervise(threat.NAME, lambda h: threat.run(h, threat_board))))
     if not REPLAY:
         tasks.append(
             asyncio.create_task(

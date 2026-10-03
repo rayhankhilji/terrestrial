@@ -40,6 +40,7 @@ TTL_S = {
     "facility": None,
     "net": None,  # removed explicitly by the nets engine when a net dissolves
     "region": None,  # danger zones: one per Ukrainian region, always present
+    "gnss": None,  # interference cells: replaced wholesale by the GNSS grid
 }
 QUEUE_LIMIT = 20_000
 
@@ -88,6 +89,9 @@ class Hub:
         # Derived props (predictions, threat scores) kept per entity and merged into every
         # upsert, so a source's next position report does not wipe them.
         self.annotations: dict[str, dict] = {}
+        # Callables(record, received_at) that see raw source records before any filtering, for
+        # aggregate statistics only (e.g. GNSS interference from civil traffic, never plotted).
+        self.raw_observers: list = []
 
     # --- sources -------------------------------------------------------------------------
 

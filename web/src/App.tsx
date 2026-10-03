@@ -1,5 +1,5 @@
 import { Inspector } from './components/Inspector'
-import { ModelCard } from './components/ModelCard'
+import { FlightModelCard, ModelCard } from './components/ModelCard'
 import { LayerControl } from './components/LayerControl'
 import { LeftPanel } from './components/LeftPanel'
 import { SentinelEditor } from './components/SentinelEditor'
@@ -25,7 +25,8 @@ export default function App() {
         candidate findings, not conclusions.
       </footer>
       {sentinelsOpen && <SentinelEditor />}
-      {modelCardOpen && <ModelCard />}
+      {modelCardOpen === 'strike' && <ModelCard />}
+      {modelCardOpen === 'flight' && <FlightModelCard />}
     </div>
   )
 }

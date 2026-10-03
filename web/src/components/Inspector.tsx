@@ -4,6 +4,8 @@ import { AIRFRAME_LABELS, flagEmoji, ROLE_LABELS } from '../lib/picture'
 import { select, ui, useStore } from '../lib/store'
 import { entityColor } from '../map/liveLayers'
 import { ForecastChart } from './ForecastChart'
+import { Destinations } from './Destinations'
+import { ThreatDetail } from './ThreatBoard'
 import { FlightHistory } from './FlightHistory'
 import { NetDetail } from './NetDetail'
 import { RegionDetail } from './RegionDetail'
@@ -192,6 +194,8 @@ export function Inspector() {
         </section>
       )}
 
+      {(e.kind === 'aircraft' || e.kind === 'vessel') && <ThreatDetail e={e} />}
+      {e.kind === 'aircraft' && !e.props.on_ground && <Destinations />}
       {(e.kind === 'aircraft' || e.kind === 'vessel') && <FlightHistory kind={e.kind} />}
 
       {e.kind === 'station' && e.props.forecast && (

@@ -5,7 +5,7 @@ import { SimpleMeshLayer } from '@deck.gl/mesh-layers'
 import { ahead, type Entity, live, projected } from '../lib/live'
 import { type Airfield, airfields, dangerColor, regionShapes, visible } from '../lib/picture'
 import type { UIState } from '../lib/store'
-import { type Flight, type Terminal, trackState } from '../lib/track'
+import { DEST_COLORS, type Destination, type Flight, predState, type Terminal, trackState } from '../lib/track'
 import { aircraftMesh, helicopterMesh, shipMesh, uavMesh } from './meshes'
 
 export type RGBA = [number, number, number, number]
@@ -201,6 +201,26 @@ export function liveLayers({ zoom, now, ui, onClick, onHover }: Context): Layer[
         onHover,
         parameters: ON_TOP,
         updateTriggers: { getFillColor: [live.version, ui.selected], getLineColor: now, getLineWidth: live.version },
+      }),
+    )
+  }
+
+  // GNSS interference: share of aircraft per cell reporting degraded GPS accuracy (gpsjam-style).
+  if (L.gnss) {
+    const cells = by('gnss')
+    const fill = (lv: string): RGBA => (lv === 'high' ? [244, 63, 94, 115] : lv === 'medium' ? [250, 204, 21, 85] : [34, 197, 94, 28])
+    layers.push(
+      new PolygonLayer<Entity>({
+        id: 'gnss',
+        data: cells,
+        getPolygon: (e) => e.props.polygon,
+        getFillColor: (e) => fill(e.props.level),
+        getLineColor: (e) => (e.props.level === 'low' ? [34, 197, 94, 50] : [244, 63, 94, 140]),
+        getLineWidth: 1,
+        lineWidthUnits: 'pixels',
+        stroked: true,
+        ...common,
+        updateTriggers: { getFillColor: live.version },
       }),
     )
   }
@@ -626,6 +646,74 @@ export function liveLayers({ zoom, now, ui, onClick, onHover }: Context): Layer[
         sizeUnits: 'pixels',
         getColor: [226, 232, 240, 255],
         getPixelOffset: [0, 18],
+        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+        fontWeight: 600,
+        outlineWidth: 3,
+        outlineColor: [2, 6, 12, 230],
+        fontSettings: { sdf: true },
+        parameters: { ...ON_TOP, cullMode: 'none' as const },
+      }),
+    )
+  }
+
+  // Predicted landing: every predicted aircraft gets a faint great-circle hint to its most likely
+  // field; the selected one gets its top destinations with full paths (opacity = probability).
+  if (L.predictions && L.aircraft) {
+    const pred = predState.get()
+    const selectedDests = pred.data && pred.id === ui.selected ? pred.data.destinations.filter((d) => d.path) : []
+    const hints = aircraft.filter((e) => e.props.pred && e.id !== ui.selected)
+    layers.push(
+      new LineLayer<Entity>({
+        id: 'pred-hints',
+        data: hints,
+        getSourcePosition: (e) => pos(e),
+        getTargetPosition: (e) => [e.props.pred.dest_lon, e.props.pred.dest_lat, 0],
+        getColor: (e) => [56, 189, 248, Math.round(25 + 90 * e.props.pred.p)],
+        getWidth: 1,
+        widthUnits: 'pixels',
+        updateTriggers: { getSourcePosition: now },
+      }),
+      new PathLayer<Destination, PathStyleExtensionProps<Destination>>({
+        id: 'pred-paths',
+        data: selectedDests,
+        getPath: (d) => d.path!.map((p) => [p[0], p[1], p[2] * altK] as [number, number, number]),
+        getColor: (d) => {
+          const c = DEST_COLORS[selectedDests.indexOf(d)] ?? DEST_COLORS[2]
+          return [c[0], c[1], c[2], Math.round(70 + 185 * Math.min(1, d.p * 1.5))]
+        },
+        getWidth: (d) => 2 + 3 * d.p,
+        widthUnits: 'pixels',
+        getDashArray: [6, 4],
+        extensions: [DASH],
+        updateTriggers: { getPath: altK },
+      }),
+      new ScatterplotLayer<Destination>({
+        id: 'pred-fields',
+        data: selectedDests,
+        getPosition: (d) => [d.lon, d.lat],
+        getRadius: 9,
+        radiusUnits: 'pixels',
+        stroked: true,
+        filled: false,
+        lineWidthMinPixels: 2,
+        getLineColor: (d) => {
+          const c = DEST_COLORS[selectedDests.indexOf(d)] ?? DEST_COLORS[2]
+          return [c[0], c[1], c[2], 255]
+        },
+        parameters: ON_TOP,
+      }),
+      new TextLayer<Destination>({
+        id: 'pred-labels',
+        data: selectedDests,
+        getPosition: (d) => [d.lon, d.lat],
+        getText: (d) => `${d.icao ?? d.ident} ${Math.round(d.p * 100)}% · ETA ${Math.round(d.eta_min)} min`,
+        getSize: 12,
+        sizeUnits: 'pixels',
+        getColor: (d) => {
+          const c = DEST_COLORS[selectedDests.indexOf(d)] ?? DEST_COLORS[2]
+          return [c[0], c[1], c[2], 255]
+        },
+        getPixelOffset: [0, -18],
         fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
         fontWeight: 600,
         outlineWidth: 3,

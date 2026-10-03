@@ -31,7 +31,7 @@ export function DangerPanel() {
               Model estimate per region, issued {utc(Date.parse(any.props.issued), true)}. {active} region{active === 1 ? '' : 's'} under alert now.
             </div>
             {any.props.degraded?.length > 0 && <div className="callout warn small">Degraded: {any.props.degraded.join(' · ')}</div>}
-            <button className="link" onClick={() => ui.set({ modelCardOpen: true })}>
+            <button className="link" onClick={() => ui.set({ modelCardOpen: 'strike' })}>
               Model card: how it was trained and tested ↗
             </button>
           </>

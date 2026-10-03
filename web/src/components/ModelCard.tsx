@@ -103,3 +103,100 @@ export function ModelCard() {
     </div>
   )
 }
+
+/** The flight-destination model's card, verbatim from /live/models/flight. */
+export function FlightModelCard() {
+  const [c, setCard] = useState<Card | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  useEffect(() => {
+    fetch('/live/models/flight')
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then(setCard)
+      .catch((err) => setError(String(err)))
+  }, [])
+  const close = () => ui.set({ modelCardOpen: false })
+  return (
+    <div className="modal" onClick={close} onKeyDown={(ev) => ev.key === 'Escape' && close()}>
+      <div className="card-shell" onClick={(ev) => ev.stopPropagation()}>
+        <button className="close" onClick={close} aria-label="Close">
+          ×
+        </button>
+        <h2>Flight destination model</h2>
+        {error && <div className="callout danger">{error}</div>}
+        {c && (
+          <section className="card">
+            <h3>
+              {c.name} <span className="muted small">v{c.version}</span>
+            </h3>
+            <p>{c.target}</p>
+            <p className={c.beats_baselines ? 'ok' : 'warn'}>
+              {c.beats_baselines
+                ? 'Beats every baseline on top-1 and top-3 accuracy for held-out flights.'
+                : 'Does NOT beat every baseline on held-out flights: treat with caution.'}
+            </p>
+            <table className="facts scores">
+              <thead>
+                <tr>
+                  <th>Held-out flights ({c.split.test})</th>
+                  <th>Top-1 ↑</th>
+                  <th>Top-3 ↑</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(c.test_scores as Record<string, { top1: number; top3: number }>).map(([name, s]) => (
+                  <tr key={name}>
+                    <th>{name}</th>
+                    <td className="mono">{(s.top1 * 100).toFixed(1)}%</td>
+                    <td className="mono">{(s.top3 * 100).toFixed(1)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <h4>By time to landing (model)</h4>
+            <table className="facts scores">
+              <tbody>
+                {Object.entries(c.test_scores.model.by_time_to_landing as Record<string, { n: number; top1: number; top3: number }>).map(([k, s]) => (
+                  <tr key={k}>
+                    <th>{k}</th>
+                    <td className="mono">n={s.n}</td>
+                    <td className="mono">top-1 {(s.top1 * 100).toFixed(0)}%</td>
+                    <td className="mono">top-3 {(s.top3 * 100).toFixed(0)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="muted small">
+              Snapshots every 5 minutes of each test flight. The true airfield was among the scored candidates in {(c.candidate_coverage_test * 100).toFixed(0)}% of
+              snapshots (the ceiling for any ranker). Flights: train {c.rows.train_flights}, test {c.rows.test_flights}.
+            </p>
+            <h4>What it relies on (permutation importance)</h4>
+            <ul className="small">
+              {(c.permutation_importance_test as { feature: string; ap_drop: number }[]).slice(0, 8).map((f) => (
+                <li key={f.feature}>
+                  <span className="mono">{f.feature}</span> — average precision drops {f.ap_drop.toFixed(3)} when shuffled
+                </li>
+              ))}
+            </ul>
+            <h4>Data</h4>
+            <ul className="small">
+              {Object.entries(c.data as Record<string, string>).map(([k, v]) => (
+                <li key={k}>
+                  <strong>{k}</strong>: {v}
+                </li>
+              ))}
+              <li>
+                <strong>algorithm</strong>: {c.algorithm}
+              </li>
+            </ul>
+            <h4>Limitations</h4>
+            <ul className="small">
+              {(c.limitations as string[]).map((l) => (
+                <li key={l}>{l}</li>
+              ))}
+            </ul>
+          </section>
+        )}
+      </div>
+    </div>
+  )
+}

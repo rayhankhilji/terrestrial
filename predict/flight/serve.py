@@ -53,12 +53,16 @@ class FlightModel:
     endurance: dict[str, float]
     priors: F.Priors
 
+    @staticmethod
+    def latest_version() -> str | None:
+        latest = MODELS_DIR / "flight" / "latest.json"
+        return read_json(latest)["version"] if latest.exists() else None
+
     @classmethod
     def load(cls) -> FlightModel | None:
-        latest = MODELS_DIR / "flight" / "latest.json"
-        if not latest.exists():
+        version = cls.latest_version()
+        if version is None:
             return None
-        version = read_json(latest)["version"]
         folder = MODELS_DIR / "flight" / version
         blob = joblib.load(folder / "model.joblib")
         if blob["features"] != F.FEATURES:

@@ -25,6 +25,7 @@ log = logging.getLogger("terrestrial.live")
 NAME = "flight-model"
 EVERY_S = 10
 REROUTE_P = 0.35
+RELOAD_CHECK_S = 120
 
 
 class Destinations:
@@ -94,6 +95,7 @@ class Destinations:
                 and before.get("p", 0) >= REROUTE_P
                 and compact["p"] >= REROUTE_P
             ):
+                hub.annotate(e["id"], "reroute_at", now)
                 hub.alert(
                     {
                         "id": f"reroute:{e['id']}:{now}",
@@ -118,8 +120,20 @@ async def run(hub: Hub, dest: Destinations) -> None:
         hub.source_error(NAME, "no trained flight model: run uv run python -m predict.flight.train")
         return
     hub.source_ok(NAME, f"model {dest.predictor.model.version}")
+    checked = time.monotonic()
     while True:
         started = time.monotonic()
+        if started - checked > RELOAD_CHECK_S:
+            checked = started
+            if FlightModel.latest_version() != dest.predictor.model.version:
+                learned = dest.predictor.learned
+                await asyncio.to_thread(dest.load)
+                dest.predictor.learned = set()  # replay live landings into the new priors
+                log.info(
+                    "flight model: reloaded %s (%d live landings to re-learn)",
+                    dest.predictor.model.version,
+                    len(learned),
+                )
         n = await dest.update(hub)
         hub.source_ok(NAME, f"{n} aircraft predicted in {time.monotonic() - started:.1f}s")
         await asyncio.sleep(EVERY_S)

@@ -56,7 +56,7 @@ export function RegionDetail({ e }: { e: Entity }) {
       )}
 
       <section>
-        <button className="link" onClick={() => ui.set({ modelCardOpen: true })}>
+        <button className="link" onClick={() => ui.set({ modelCardOpen: 'strike' })}>
           Model card: data, time-split test, scores against baselines ↗
         </button>
       </section>

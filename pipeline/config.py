@@ -84,6 +84,45 @@ class ScoreWeights:
 
 WEIGHTS = ScoreWeights()
 
+
+@dataclass(frozen=True)
+class ThreatWeights:
+    """Live craft ranking (CLAUDE.md §16.1, M7): heuristic, transparent, every point explained.
+
+    Two axes: `threat` (to Ukraine: who operates it, what it can do, where it is going) and
+    `intel` (how significant it is to watch: missions, anomalies). Priority = threat +
+    INTEL_SHARE × intel, capped at 100."""
+
+    hostile_state: int = 40
+    strike_role: int = 15
+    isr_role: int = 8
+    uav: int = 8
+    near_ukraine_50km: int = 20
+    near_ukraine_150km: int = 12
+    near_ukraine_300km: int = 6
+    inbound_to_ukraine: int = 10
+    destination_near_ukraine: int = 5
+    emergency_squawk: int = 25
+    no_callsign: int = 5
+    own_gnss_degraded: int = 8
+    gnss_interference_area: int = 6
+    isr_near_ukraine: int = 15
+    mission_net: int = 10
+    on_station: int = 8
+    reroute_recent: int = 6
+    naval_warship: int = 10
+    cap: int = 100
+    intel_share: float = 0.5
+
+    def as_dict(self) -> dict:
+        return asdict(self)
+
+
+THREAT = ThreatWeights()
+# ICAO address-block states treated as hostile to Ukraine (lower-case ISO alpha-2).
+HOSTILE_STATES = frozenset({"ru", "by", "ir", "kp"})
+
+
 # OpenSanctions risk topics that count as a sanctions-relevant listing.
 SANCTION_TOPICS = frozenset({"sanction", "mare.shadow"})
 DETENTION_TOPIC = "mare.detained"

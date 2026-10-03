@@ -1147,3 +1147,16 @@ button.link {
   height: 2px;
   background: var(--amber);
 }
+
+/* Predicted landing */
+.dests { list-style: none; padding: 0; margin: 0.4rem 0; display: grid; gap: 0.55rem; }
+.dests .swatch, .legend .swatch { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 2px; vertical-align: middle; }
+.pbar { position: relative; height: 0.85rem; background: var(--panel-2, rgba(148, 163, 184, 0.12)); border-radius: 3px; margin: 0.25rem 0; overflow: hidden; }
+.pbar > span { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; }
+.pbar > em { position: absolute; right: 0.35rem; top: -0.05rem; font-style: normal; font-size: 0.72rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.endurance { margin-top: 0.6rem; }
+
+/* Threat board */
+.prio { display: inline-flex; align-items: center; justify-content: center; min-width: 2.1rem; height: 1.6rem; border: 2px solid; border-radius: 6px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 700; margin-right: 0.5rem; }
+.tag.axis-threat { border-color: #f43f5e; color: #fda4af; }
+.tag.axis-intel { border-color: #38bdf8; color: #7dd3fc; }

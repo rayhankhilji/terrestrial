@@ -110,6 +110,7 @@ def build(flights: list[Flight], fields: F.Fields, classify: MilClassifier,
             continue
         for k, rows in enumerate(flight_rows(fl, describe(fl, classify, endurance), fields, priors)):
             rows["flight"] = fid
+            rows["hex"] = fl.hex
             rows["snap"] = fid * 10_000 + k
             rows["y"] = (rows["cand"] == fl.landing).astype(int)
             rows["start"] = fl.start.timestamp()

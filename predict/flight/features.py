@@ -35,6 +35,7 @@ REACH_MARGIN = 1.3
 SNAPSHOT_EVERY_MIN = 5
 MIN_REMAINING_MIN = 45
 VRATE_WINDOW_S = 120
+MIN_DERIVE_S = 30
 TURN_WINDOW_S = 15 * 60
 FAMILY = re.compile(r"^([A-Z]{2,6})\d")
 KIND_CODE = {"large_airport": 3, "medium_airport": 2, "small_airport": 1, "heliport": 0, "seaplane_base": 0}
@@ -138,9 +139,26 @@ def kinematics(ts: np.ndarray, lat: np.ndarray, lon: np.ndarray, alt: np.ndarray
     turn = float(np.abs((np.diff(tr) + 180) % 360 - 180).sum()) if len(tr) > 1 else 0.0
     path = float(_hav_km(lat[k:i], lon[k:i], lat[k + 1 : i + 1], lon[k + 1 : i + 1]).sum()) if i > k else 0.0
     disp = float(_hav_km(lat[k], lon[k], lat[i], lon[i]))
+    # Ground speed: reported, unless the positions disagree. MLAT-derived speeds are often wrong
+    # (two feeds reported 245 and 479 kn for the same C-17 at FL350), so on a straight segment of
+    # at least MIN_DERIVE_S the speed implied by the positions wins when they differ by > 35 %.
     g = gs[i]
-    if np.isnan(g):  # derive from positions if the source omitted it
-        g = path / max((t - ts[k]) / 3600, 1e-6) / 1.852 if i > k else 0.0
+    wt = trk[j : i + 1]
+    wt = wt[~np.isnan(wt)]
+    straight = len(wt) < 2 or float(np.abs((np.diff(wt) + 180) % 360 - 180).sum()) < 45
+    derived = (
+        float(_hav_km(lat[j], lon[j], lat[i], lon[i])) / (dt / 3600) / 1.852
+        if t - ts[j] >= MIN_DERIVE_S
+        else None
+    )
+    if np.isnan(g):
+        g = (
+            derived
+            if derived is not None
+            else (path / max((t - ts[k]) / 3600, 1e-6) / 1.852 if i > k else 0.0)
+        )
+    elif derived is not None and straight and derived > 50 and abs(g - derived) > 0.35 * derived:
+        g = derived
     tk = trk[i]
     if np.isnan(tk) and i > 0:
         y = np.sin(np.radians(lon[i] - lon[i - 1])) * np.cos(np.radians(lat[i]))

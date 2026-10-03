@@ -98,9 +98,10 @@ def test_kinematics_are_causal_and_sane(flights):
 def test_priors_never_contain_the_flight_being_predicted(flights, fields, classifier):
     endurance = endurance_table(flights)
     rows, priors = build(flights, F.Fields(fields), classifier, endurance)
-    tutor_ids = sorted(rows[rows["cand"] == "EGDM"].groupby("flight")["hex_prior_n"].max().items())
+    tutor = rows[(rows["hex"] == "400ee1") & (rows["cand"] == "EGDM")]
+    tutor_ids = sorted(tutor.groupby("flight")["hex_prior_n"].max().items())
     # The Tutor's three flights: the first knows no earlier landing of this airframe, the second one, the third two.
-    assert [n for _, n in tutor_ids[-3:]] == [0, 1, 2]
+    assert [n for _, n in tutor_ids] == [0, 1, 2]
     assert sum(priors.by_hex["400ee1"].values()) == 3  # serving starts from every flight
     assert set(rows["y"]) == {0, 1}
 

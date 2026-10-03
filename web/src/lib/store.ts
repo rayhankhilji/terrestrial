@@ -48,13 +48,15 @@ export type LayerKey =
   | 'stations'
   | 'trails'
   | 'forecast'
+  | 'predictions'
+  | 'gnss'
   | 'aois'
   | 'gaps'
   | 'sar'
   | 'encounters'
   | 'loitering'
   | 'portVisits'
-export type LeftTab = 'alerts' | 'live' | 'nets' | 'danger' | 'vessels' | 'highlights'
+export type LeftTab = 'alerts' | 'threats' | 'live' | 'nets' | 'danger' | 'vessels' | 'highlights'
 
 export interface FlyTo {
   lon: number
@@ -77,7 +79,7 @@ export interface UIState {
   hovered: string | null
   leftTab: LeftTab
   sentinelsOpen: boolean
-  modelCardOpen: boolean
+  modelCardOpen: false | 'strike' | 'flight'
   layersOpen: boolean
   follow: boolean
   flyTo: FlyTo | null
@@ -104,6 +106,8 @@ export const ui = createStore<UIState>({
     stations: true,
     trails: true,
     forecast: true,
+    predictions: true,
+    gnss: true,
     aois: true,
     gaps: true,
     sar: true,
