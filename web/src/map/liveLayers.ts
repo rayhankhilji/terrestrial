@@ -5,6 +5,7 @@ import { SimpleMeshLayer } from '@deck.gl/mesh-layers'
 import { ahead, type Entity, live, projected } from '../lib/live'
 import { type Airfield, airfields, visible } from '../lib/picture'
 import type { UIState } from '../lib/store'
+import { type Flight, type Terminal, trackState } from '../lib/track'
 import { aircraftMesh, helicopterMesh, shipMesh, uavMesh } from './meshes'
 
 export type RGBA = [number, number, number, number]
@@ -101,6 +102,26 @@ const RELATION_COLORS: Record<string, RGBA> = {
   THERMAL_ANOMALY_AT: [255, 122, 48, 220],
   REPORTED_AT: [167, 139, 250, 200],
   PRESENT_IN_AOI: [244, 63, 94, 220],
+}
+
+/** Altitude ramp for flight history: low = green, mid = amber, high = violet. */
+export function altitudeColor(m: number): RGBA {
+  const stops: [number, RGBA][] = [
+    [0, [74, 222, 128, 255]],
+    [3000, [250, 204, 21, 255]],
+    [8000, [251, 146, 60, 255]],
+    [12000, [192, 132, 252, 255]],
+  ]
+  if (m <= 0) return stops[0][1]
+  for (let i = 1; i < stops.length; i++) {
+    const [h1, c1] = stops[i]
+    const [h0, c0] = stops[i - 1]
+    if (m <= h1) {
+      const k = (m - h0) / (h1 - h0)
+      return c0.map((v, j) => Math.round(v + k * (c1[j] - v))) as RGBA
+    }
+  }
+  return stops[stops.length - 1][1]
 }
 
 /** Exaggerate aircraft altitude when zoomed out so the 3D picture stays legible. */
@@ -456,6 +477,55 @@ export function liveLayers({ zoom, now, ui, onClick, onHover }: Context): Layer[
       parameters: ON_TOP,
     }),
   )
+
+  // Full observed history of the selected track, coloured by altitude, with its airfields.
+  const history = trackState.get()
+  if (L.trails && history.data && history.id === ui.selected) {
+    const flights = history.data.flights.filter((f) => f.points.length > 1)
+    const terminals: { t: Terminal; what: string }[] = flights.flatMap((f) => [
+      ...(f.origin ? [{ t: f.origin, what: 'from' }] : []),
+      ...(f.landing ? [{ t: f.landing, what: 'landed' }] : []),
+    ])
+    layers.push(
+      new PathLayer<Flight>({
+        id: 'history',
+        data: flights,
+        getPath: (f) => f.points.map((p) => [p[1], p[2], p[3] * altK] as [number, number, number]),
+        getColor: (f) => f.points.map((p) => altitudeColor(p[3])),
+        getWidth: 3,
+        widthUnits: 'pixels',
+        updateTriggers: { getPath: altK },
+      }),
+      new ScatterplotLayer<{ t: Terminal; what: string }>({
+        id: 'history-terminals',
+        data: terminals,
+        getPosition: ({ t }) => [t.lon, t.lat],
+        getRadius: 7,
+        radiusUnits: 'pixels',
+        stroked: true,
+        lineWidthMinPixels: 2,
+        getFillColor: [2, 6, 12, 220],
+        getLineColor: ({ what }) => (what === 'landed' ? [74, 222, 128, 255] : [226, 232, 240, 255]),
+        parameters: ON_TOP,
+      }),
+      new TextLayer<{ t: Terminal; what: string }>({
+        id: 'history-terminal-labels',
+        data: terminals,
+        getPosition: ({ t }) => [t.lon, t.lat],
+        getText: ({ t, what }) => `${what} ${t.icao ?? t.ident} · ${t.name}`,
+        getSize: 12,
+        sizeUnits: 'pixels',
+        getColor: [226, 232, 240, 255],
+        getPixelOffset: [0, 18],
+        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+        fontWeight: 600,
+        outlineWidth: 3,
+        outlineColor: [2, 6, 12, 230],
+        fontSettings: { sdf: true },
+        parameters: { ...ON_TOP, cullMode: 'none' as const },
+      }),
+    )
+  }
 
   // Selection halo
   const sel = ui.selected ? live.entities.get(ui.selected) : undefined

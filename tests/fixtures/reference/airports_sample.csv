@@ -7,3 +7,4 @@ id,ident,type,name,latitude_deg,longitude_deg,elevation_ft,continent,iso_country
 46088,RU-10078,small_airport,Morozovsk Air Base,48.313,41.791,400,EU,RU,RU-ROS,Morozovsk,no,,,URRM,XRRM,,https://en.wikipedia.org/wiki/Morozovsk_(air_base),"Аэродром Морозовск, ЬРРМ, УРРМ"
 44293,UKFB,medium_airport,Sevastopol International Airport / Belbek Air Base,44.691822,33.57462,344,EU,UA,UA-43,Sevastopol,no,UKFB,UKS,UKFB,,,https://en.wikipedia.org/wiki/Sevastopol_International_Airport,"Севастополь, Бельбек"
 44296,UKFI,medium_airport,Saky Air Base,45.090611,33.598536,36,EU,UA,UA-43,Novofedorivka,no,,,UKFI,,,https://en.wikipedia.org/wiki/Saky_(air_base),"Аэродом Саки, URFI"
+3979,"LBWN","large_airport","Varna Airport",43.232101,27.8251,230,"EU","BG","BG-03","Varna","yes","LBWN","VAR","LBWN",,,"https://en.wikipedia.org/wiki/Varna_Airport","Aksakovo"

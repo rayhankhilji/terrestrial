@@ -72,3 +72,9 @@ export function describe(e: Entity): string {
       return `waves ${num(e.props.wave_m, 1)} m · cloud ${num(e.props.cloud_pct)}% · wind ${num(e.props.wind_kmh)} km/h`
   }
 }
+
+export function duration(ms: number): string {
+  const m = Math.max(0, Math.round(ms / 60000))
+  if (m < 60) return `${m} min`
+  return `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')} min`
+}

@@ -24,6 +24,7 @@ from live.correlate import Correlator
 from live.hub import Hub, now_ms
 from live.sentinels import SentinelEngine
 from live.sources import adsb, ais, firms, gdelt, weather, wikidata
+from live.tracks import AirfieldIndex, TrackStore
 from pipeline.config import LIVE_DIR
 from reference.airfields import airfields
 
@@ -37,6 +38,7 @@ REPLAY = os.environ.get("LIVE_REPLAY", "").strip()
 
 hub = Hub(record_dir=None if REPLAY else LIVE_DIR)
 sentinels = SentinelEngine()
+tracks = TrackStore()
 
 
 async def supervise(name: str, run) -> None:
@@ -65,7 +67,11 @@ async def lifespan(_: FastAPI):
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%H:%M:%S")
     logging.getLogger("httpx").setLevel(logging.WARNING)
     facilities = await asyncio.to_thread(wikidata.load_into, hub)
-    await asyncio.to_thread(airfields)  # warm the reference cache before the first request
+    tracks.airfields = AirfieldIndex(await asyncio.to_thread(airfields))
+    if not REPLAY:
+        # Before any source starts, so the rebuild never races live appends.
+        await asyncio.to_thread(tracks.rebuild, LIVE_DIR)
+    hub.listeners.append(tracks)
     hub.listeners.append(Correlator(facilities))
     hub.listeners.append(sentinels)
     if REPLAY:
@@ -105,6 +111,15 @@ def status() -> dict:
 def list_airfields(military_only: bool = False) -> list[dict]:
     """Airfields in the military area (OurAirports): static reference, served from cache."""
     return [asdict(a) for a in airfields() if a.military or not military_only]
+
+
+@app.get("/live/track/{entity_id:path}")
+def track(entity_id: str, hours: float = 48) -> dict:
+    """Full observed history of a military aircraft or naval vessel, split into flights."""
+    try:
+        return tracks.track(entity_id, hours=max(0.1, min(hours, 48)))
+    except KeyError as exc:
+        raise HTTPException(404, f"no track history for {entity_id}") from exc
 
 
 @app.get("/live/snapshot")

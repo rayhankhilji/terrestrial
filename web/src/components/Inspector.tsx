@@ -4,6 +4,7 @@ import { AIRFRAME_LABELS, flagEmoji, ROLE_LABELS } from '../lib/picture'
 import { select, ui, useStore } from '../lib/store'
 import { entityColor } from '../map/liveLayers'
 import { ForecastChart } from './ForecastChart'
+import { FlightHistory } from './FlightHistory'
 
 function pivots(e: Entity): { label: string; href: string }[] {
   const p = e.props
@@ -148,6 +149,8 @@ export function Inspector() {
           </tbody>
         </table>
       </section>
+
+      {(e.kind === 'aircraft' || e.kind === 'vessel') && <FlightHistory kind={e.kind} />}
 
       {e.kind === 'station' && e.props.forecast && (
         <section>
