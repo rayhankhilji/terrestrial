@@ -19,11 +19,23 @@ from pathlib import Path
 
 from fastapi import Body, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 
-from live import danger, destinations, front, gnss, nets, replay, threat
+from live import (
+    danger,
+    destinations,
+    front,
+    gnss,
+    nets,
+    registry,
+    replay,
+    satellites,
+    signals,
+    sitrep,
+    threat,
+)
 from live.correlate import Correlator
 from live.hub import Hub, now_ms
 from live.sentinels import SentinelEngine
-from live.sources import adsb, ais, firms, gdelt, weather, wikidata
+from live.sources import adsb, ais, firms, gdelt, rss, telegram, weather, wikidata
 from live.sources import alerts as air_alerts
 from live.tracks import AirfieldIndex, TrackStore
 from pipeline.config import LIVE_DIR
@@ -46,6 +58,11 @@ danger_zones = danger.DangerZones(alert_log)
 flight_dest = destinations.Destinations(tracks)
 gnss_grid = gnss.GnssGrid()
 front_line = front.FrontLine()
+sky = satellites.Constellation()
+wires = rss.Wires()
+channels = telegram.Channels()
+report = sitrep.Sitrep()
+signal_queue = signals.Signals()
 threat_board = threat.ThreatBoard(gnss_grid, front_line)
 
 
@@ -83,6 +100,7 @@ async def lifespan(_: FastAPI):
     hub.raw_observers.append(gnss_grid.observe)
     hub.listeners.append(Correlator(facilities))
     hub.listeners.append(sentinels)
+    hub.listeners.append(signal_queue)
     if REPLAY:
         speed = float(os.environ.get("LIVE_REPLAY_SPEED", "1"))
         tasks = [asyncio.create_task(supervise("replay", lambda h: replay.run(h, Path(REPLAY), speed)))]
@@ -98,6 +116,12 @@ async def lifespan(_: FastAPI):
     )
     tasks.append(asyncio.create_task(supervise(gnss.NAME, lambda h: gnss.run(h, gnss_grid))))
     tasks.append(asyncio.create_task(supervise(threat.NAME, lambda h: threat.run(h, threat_board))))
+    tasks.append(asyncio.create_task(supervise(satellites.NAME, lambda h: satellites.run(h, sky))))
+    tasks.append(asyncio.create_task(supervise(sitrep.NAME, lambda h: sitrep.run(h, report))))
+    tasks.append(asyncio.create_task(supervise(signals.NAME, lambda h: signals.run(h, signal_queue))))
+    if not REPLAY:
+        tasks.append(asyncio.create_task(supervise(telegram.NAME, lambda h: telegram.run(h, channels))))
+        tasks.append(asyncio.create_task(supervise(rss.NAME, lambda h: rss.run(h, wires))))
     tasks.append(asyncio.create_task(supervise(front.NAME, lambda h: front.run(h, front_line))))
     if not REPLAY:
         tasks.append(
@@ -169,6 +193,34 @@ def flight_model_card() -> dict:
     if flight_dest.predictor is None:
         raise HTTPException(503, "no trained flight model")
     return flight_dest.predictor.model.card
+
+
+@app.get("/live/passes")
+def satellite_passes(lon: float, lat: float, hours: float = 24) -> dict:
+    """Imaging-satellite pass windows over a point in the next `hours` (opportunities, not
+    acquisitions: commercial SAR images only where tasked)."""
+    if not sky.sats:
+        raise HTTPException(503, "satellite elements not loaded yet")
+    start = now_ms() / 1000
+    return {
+        "lon": lon,
+        "lat": lat,
+        "from": int(start * 1000),
+        "hours": min(hours, 72),
+        "passes": satellites.passes(sky.sats, lon, lat, start, min(hours, 72)),
+    }
+
+
+@app.get("/live/streams")
+def streams() -> list[dict]:
+    """Every data stream with provider, cadence, licence, key requirement and live health."""
+    return registry.status(hub)
+
+
+@app.get("/live/headlines")
+def headlines(limit: int = 60) -> list[dict]:
+    """Latest headlines from the Ukrainian news wires, placed or not (newest first)."""
+    return wires.headlines[: max(1, min(limit, 300))]
 
 
 @app.get("/live/front")

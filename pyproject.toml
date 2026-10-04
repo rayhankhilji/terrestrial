@@ -14,6 +14,7 @@ dependencies = [
     "pyproj>=3.6",
     "python-dotenv>=1.0",
     "scikit-learn>=1.9.1",
+    "sgp4>=2.27",
     "shapely>=2.0",
     "uvicorn[standard]>=0.30",
     "websockets>=17.1",

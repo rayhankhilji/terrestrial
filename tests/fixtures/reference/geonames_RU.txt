@@ -1,0 +1,31 @@
+505259	Primorsko-Akhtarsk	Primorsko-Akhtarsk	Akhtari,Primors'ko-Akhtars'k,Primorsko-Achidrskaja,Primorsko-Achtarsk,Primorsko-Ahtarsk,Primorsko-Ajtarsk,Primorsko-Akhtarsk,Primorsko-Akhtarskaya,Primorsko-Axtarsk,Primorsko-Aĥtarsk,Prymorska-Akhtarsk,Stantsiya Primorsko-Akhtarskaya,bin hai a he ta er si ke,brymwrskw-akhtarsk,prymwrskw-akhtarsk,Приморско-Ахтарск,Приморско-Ахтарск балһсн,Приморсько-Ахтарськ,Прыморска-Ахтарск,بريمورسكو-أختارسك,پریمورسکو-آختارسک,濱海阿赫塔爾斯克	46.04847	38.17899	P	PPLA2	RU		38				33102		6	Europe/Moscow	2024-09-12
+515007	Orël	Orel	Orel,Orjol,Orël,Орел,Орёл	59.3397	56.5891	P	PPL	RU		90				0		119	Asia/Yekaterinburg	2014-06-26
+515008	Orël	Orel	Orel,Orjol,Orël,Орел,Орёл	58.9517	36.4248	P	PPL	RU		85				0		119	Europe/Moscow	2012-01-17
+515010	Orël	Orel	Orel,Orjol,Orël,Орёл	55.73333	34.1	P	PPL	RU		69				0		218	Europe/Moscow	2012-01-17
+515011	Orël	Orel	Orel,Orjol,Orël,Орёл	55.18109	46.82431	P	PPL	RU		16				0		174	Europe/Moscow	2012-01-17
+515012	Orël	Orel	OEL,Orel,Oriol,Oriolas,Orjol,Oryol,Orzel,Orzeł,Orël,awryl,awrywl,olyol,orala,orela,oryoru,ʿoreል,Орел,Орёл,Орјол,أوريول,اوریل,ओरल,ওরেল,ਓਰੇਲ,ኦሬል,オリョール,오룔	52.96879	36.0791	P	PPLA	RU		56				303696		176	Europe/Moscow	2026-04-14
+515013	Orël	Orel		44.74417	41.63472	P	PPL	RU		70				0		308	Europe/Moscow	2007-05-30
+524901	Moscow	Moscow	MOW,Maeskuy,Maskav,Maskava,Maskva,Mat-xco-va,Matxcova,Matxcơva,Mosca,Moscfa,Moscha,Mosco,Moscou,Moscova,Moscovo,Moscow,Moscoƿ,Moscu,Moscua,Moscòu,Moscó,Moscù,Moscú,Moskva,Moska,Moskau,Mosko,Moskokh,Moskou,Moskov,Moskova,Moskovu,Moskow,Moskowa,Mosku,Moskua,Moskuas,Moskva,Moskvo,Moskwa,Moszkva,Muskav,Musko,Mát-xcơ-va,Mòskwa,Məskeu,Məskəү,masko,maskw,mo si ke,moseukeuba,mosko,mosukuwa,mskw,mwskva,mwskw,mwsqbh,mx s ko,Μόσχα,Мæскуы,Маскав,Масква,Москва,Москова,Москох,Москъва,Мускав,Муско,Мәскеу,Мәскәү,Մոսկուա,Մոսկվա,מאָסקװע,מאסקווע,מוסקבה,ماسکو,مسکو,موسكو,موسكۋا,ܡܘܣܩܒܐ,मास्को,मॉस्को,মস্কো,மாஸ்கோ,มอสโก,མོ་སི་ཁོ།,მოსკოვი,ሞስኮ,モスクワ,莫斯科,모스크바	55.75204	37.61781	P	PPLC	RU		48				10381222		155	Europe/Moscow	2025-09-09
+526558	Millerovo	Millerovo	Milerava,Milerovo,Millerovo,Millerowo,mi lie luo wo,millelobo,mylrwfw,mylyrwfw,Милерово,Миллерово,Миллерово балһсн,Мілерава,Міллерово,Միլլերովո,ميليروفو,میلروفو,米列羅沃,밀레로보	48.92523	40.39982	P	PPLA2	RU		61				38527		149	Europe/Moscow	2024-09-12
+526559	Millerovo	Millerovo	Millerovo,Миллерово	47.83051	39.24777	P	PPL	RU		61				0		113	Europe/Moscow	2026-01-18
+538559	Kursk	Kursk	Kursk,Курск	59.31616	29.13473	P	PPL	RU		42				0		103	Europe/Moscow	2023-11-07
+538560	Kursk	Kursk	Koersk,Koursk,Kurs'k,Kursk,Kurskas,Kúrsk,URS,ku er si ke,kuleuseukeu,kurasaka,kurisiki,kurska,kurusuku,kwrsk,Курск,Курськ,كورسك,کورسک,कुर्स्क,কুর্স্ক,ਕੁਰਸਕ,ኩርስክ,クルスク,库尔斯克,庫爾斯克,쿠르스크	51.72689	36.18457	P	PPLA	RU		41				448733		187	Europe/Moscow	2026-04-14
+563463	Engels	Engels	Ehngel's,Engel's,Engel’s,Энгельс	51.98333	54.25	P	PPL	RU		55				0		287	Asia/Yekaterinburg	2021-08-02
+563464	Engels	Engels	Ehngel's,Enehl's,Engel's,Engeljs,Engels,Engels an der Wolga,Engel’s,Pokrovs'ka Sloboda,Pokrovsk,Pokrovskaya,Pokrovskaya Sloboda,Енгельс,Покровська Слобода,Энгельс	51.48389	46.10528	P	PPL	RU		67				196011		12	Europe/Saratov	2026-05-08
+571476	Bryansk	Bryansk	BZK,Breansk,Briansk,Brianski,Briańsk,Brjans'k,Brjansk,Brjansko,Bryansk,beulyanseukeu,biriyanisiki,brayanaska,brayanska,bri'ansaka,bryansk,brynsk,buryansuku,Брянск,Брянськ,Брјанск,بريانسك,بریانسک,برینسک,ब्रायांस्क,ব্রায়ানস্ক,ਬ੍ਰਿਆਂਸਕ,ብርያንስክ,ブリャンスク,브랸스크	53.27096	34.32143	P	PPLA	RU		10	571467			427236		209	Europe/Moscow	2026-04-14
+571477	Bryansk	Bryansk	Brjansk,Bryansk,Брянск	44.33005	46.98319	P	PPL	RU		17				0		-24	Europe/Moscow	2012-01-17
+802611	Millerovo	Millerovo		46.66444	40.51306	P	PPL	RU		61				0		85	Europe/Moscow	1996-02-20
+802932	Millerovo	Millerovo	Millerovo,Миллерово	47.84722	39.28028	P	PPL	RU		61				0		142	Europe/Moscow	2012-01-19
+856237	Orël	Orel	Orel,Orjol,Orël,Орёл	58.94396	27.77906	P	PPL	RU		60				0		45	Europe/Moscow	2023-10-06
+1496083	Orël	Orel	Orel,Orjol,Orël,Орёл	53.6391	81.2452	P	PPLQ	RU		04				0		160	Asia/Barnaul	2012-01-17
+1496084	Orël	Orel	Orel,Orjol,Orël,Орел,Орёл	53.11583	82.61972	P	PPL	RU		04				0		213	Asia/Barnaul	2012-01-17
+1501264	Kursk	Kursk	Kursk,Kurskiy,Курск	52.4439	78.9233	P	PPL	RU		04				0		135	Asia/Barnaul	2012-01-17
+1501267	Kursk	Kursk	Kursk,Курск	54.58139	91.49944	P	PPL	RU		91				0		461	Asia/Krasnoyarsk	2012-08-04
+2026070	Bryansk	Bryansk	Brjansk,Bryansk,Bryanskoye,Брянск	52.02306	106.84333	P	PPL	RU		11				0		471	Asia/Irkutsk	2012-01-17
+6314097	Orël	Orel	Orel,Orjol,Orël,Орёл	43.16801	133.25761	P	PPL	RU		59				0		92	Asia/Vladivostok	2024-04-20
+7077063	Orël	Orel	Orel,Orjol,Orlovka,Orël,Орёл	55.56761	49.06752	P	PPL	RU		73				0		120	Europe/Moscow	2020-06-12
+7611140	Orël	Orel	Orel,Orjol,Orël,Орёл	58.4731	28.2766	P	PPL	RU		60				0		54	Europe/Moscow	2012-01-21
+7665154	Orël	Orel	Orel,Orjol,Orël,Орёл	52.5043	31.7065	P	PPL	RU		10				0		132	Europe/Moscow	2012-01-21
+7687867	Orël	Orel	Orel,Orjol,Orël,Орёл	50.8148	38.9426	P	PPL	RU		86				0		139	Europe/Moscow	2019-10-11
+8255281	Orël	Orel	Orel,Orjol,Orël,Орёл	57.7801	53.7585	P	PPLQ	RU		80				0		229	Europe/Samara	2012-04-07
+11459324	Engels	Engels	Engels	51.4779	46.21599	S	AIRB	RU		67				0		30	Europe/Saratov	2017-02-06

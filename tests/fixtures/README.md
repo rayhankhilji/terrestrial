@@ -22,3 +22,7 @@ saved from the live source. Nothing is hand-written.
 | `history/adsb_archive_sample.csv.gz` | Every position of four military aircraft on 2 Oct 2026 from Terrestrial's extract of the adsb.lol `globe_history` archive (USAF C-17 RCH153 into Ramstein, RAF Grob Tutor UAU967 circuits at Boscombe Down, Luftwaffe A400M GAF148, Czech Mi-8 GASTN41) | ODbL, © adsb.lol contributors |
 | `history/ourairports_flight_sample.csv` | Verbatim rows of OurAirports `airports.csv`: every airfield near those flights' low points plus all large airports in the theatre box | Public domain |
 | `live/openmeteo_winds_aloft.json` | Open-Meteo forecast response, winds at 925–250 hPa in knots, 49°N 8°E, 3 Oct 2026 | CC BY 4.0, Open-Meteo |
+| `reference/geonames_UA.txt`, `reference/geonames_RU.txt` | Verbatim rows of the GeoNames `UA.txt` / `RU.txt` dumps for the places the parser tests need, including the ambiguous ones (villages sharing a city's alternate name) | CC BY 4.0, GeoNames |
+| `live/celestrak_sentinel1.json` | CelesTrak GP API response, `NAME=SENTINEL-1&FORMAT=json`, 4 Oct 2026 | CelesTrak (public) |
+| `live/telegram_kpszsu.html`, `live/telegram_war_monitor.html` | Telegram public web preview pages `t.me/s/kpszsu` (Air Force of Ukraine) and `t.me/s/war_monitor`, 4 Oct 2026 | public channel posts |
+| `live/rss_kyiv_independent.xml`, `live/rss_ukrainska_pravda.xml`, `live/rss_ukrinform.xml` | RSS feeds of the three news wires, 4 Oct 2026 | publisher terms; headlines and links only |

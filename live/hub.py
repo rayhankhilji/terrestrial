@@ -41,7 +41,10 @@ TTL_S = {
     "net": None,  # removed explicitly by the nets engine when a net dissolves
     "region": None,  # danger zones: one per Ukrainian region, always present
     "gnss": None,
-    "front": None,  # interference cells: replaced wholesale by the GNSS grid
+    "front": None,
+    "satellite": 120,
+    "sitrep": None,
+    "airthreat": None,  # removed by the Telegram source when a report is older than its TTL  # interference cells: replaced wholesale by the GNSS grid
 }
 QUEUE_LIMIT = 20_000
 
