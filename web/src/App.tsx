@@ -1,29 +1,38 @@
+import { useEffect } from 'react'
+import { CommandBar } from './components/CommandBar'
+import { Dock } from './components/Dock'
 import { Inspector } from './components/Inspector'
-import { FlightModelCard, ModelCard } from './components/ModelCard'
 import { LayerControl } from './components/LayerControl'
-import { LeftPanel } from './components/LeftPanel'
+import { FlightModelCard, ModelCard } from './components/ModelCard'
+import { Palette } from './components/Palette'
+import { Rail, SidePanel } from './components/Rail'
 import { SentinelEditor } from './components/SentinelEditor'
-import { TopBar } from './components/TopBar'
+import { Toasts } from './components/Toasts'
+import { startFeeds } from './lib/feeds'
 import { ui, useStore } from './lib/store'
 import MapView from './map/MapView'
 
 export default function App() {
   const sentinelsOpen = useStore(ui, (s) => s.sentinelsOpen)
   const modelCardOpen = useStore(ui, (s) => s.modelCardOpen)
+  useEffect(startFeeds, [])
   return (
     <div className="app">
-      <TopBar />
-      <LeftPanel />
-      <main className="stage">
-        <MapView />
-        <LayerControl />
-        <Inspector />
-      </main>
-      <footer className="footer">
-        Data: ADS-B (adsb.fi, adsb.lol), ADS-B Exchange DB, OurAirports, air-raid alerts (Vadimkin dataset, ubilling.net.ua), VIINA 2.0, DeepStateMap.Live, adsb.lol archive (ODbL), Natural Earth, geoBoundaries,
-        Open-Meteo, GDELT, NASA FIRMS, Wikidata, OpenSanctions, Global Fishing Watch, OpenStreetMap. Model estimates and inferred groupings —
-        candidate findings, not conclusions.
-      </footer>
+      <MapView />
+      <div className="map-vignette" />
+      <CommandBar />
+      <Rail />
+      <SidePanel />
+      <Inspector />
+      <LayerControl />
+      <Toasts />
+      <Dock />
+      <div className="attribution">
+        ADS-B: adsb.fi, adsb.lol · Air Force of Ukraine · DeepStateMap · official air-raid alert map · VIINA · GeoNames · CelesTrak · Open-Meteo · GDELT · Kyiv Independent ·
+        Ukrainska Pravda · Ukrinform · OurAirports · Wikidata · Natural Earth · Esri imagery · © OpenStreetMap. Model estimates are labelled; nothing here is a
+        confirmed finding.
+      </div>
+      <Palette />
       {sentinelsOpen && <SentinelEditor />}
       {modelCardOpen === 'strike' && <ModelCard />}
       {modelCardOpen === 'flight' && <FlightModelCard />}

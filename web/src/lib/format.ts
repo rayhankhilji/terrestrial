@@ -56,6 +56,12 @@ export function kindLabel(e: Entity): string {
       return `GNSS interference · ${e.props.level}`
     case 'front':
       return 'Front line · DeepStateMap'
+    case 'airthreat':
+      return e.props.tally ? 'Air Force tally · overnight attack' : `Air threat · ${e.props.weapon_label ?? 'report'}`
+    case 'satellite':
+      return `Imaging satellite · ${e.props.sensor === 'SAR' ? 'radar' : 'optical'}`
+    case 'sitrep':
+      return 'Situation report'
   }
 }
 
@@ -81,6 +87,12 @@ export function describe(e: Entity): string {
     case 'region':
       if (e.props.p_new != null) return `new alert next 6 h: ${Math.round(e.props.p_new * 100)}% (model estimate)`
       return e.props.issued ? 'not modelled (no alert data: occupied)' : 'forecast pending'
+    case 'airthreat':
+      return [e.props.region_name, e.props.channel_name, ago(e.ts)].filter(Boolean).join(' · ')
+    case 'satellite':
+      return `${e.props.operator} · ${e.props.alt_km} km · ${e.props.tasked ? 'tasked commercial' : 'public plan'}`
+    case 'sitrep':
+      return `${e.props.facts?.length ?? 0} facts`
     case 'front':
       return `${Math.round(e.props.occupied_km2).toLocaleString()} km² occupied · front ~${e.props.front_km} km · snapshot ${e.props.datetime}`
     case 'gnss':

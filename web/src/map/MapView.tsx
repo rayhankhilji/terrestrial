@@ -11,6 +11,11 @@ import { type Airfield, loadAirfields, loadRegions } from '../lib/picture'
 import { select, ui, useStore } from '../lib/store'
 import { CARTO_DARK, satelliteStyle, TERRAIN_SOURCE } from './basemaps'
 import { liveLayers } from './liveLayers'
+import { installNativeLayers, regionAt, syncNativeLayers } from './nativeLayers'
+import { dangerPoints } from '../lib/danger'
+import { glowBuildings } from './strikeGlow'
+import { StrikePins } from './StrikePins'
+import { applyCamera, chaseFrame, releaseOnInteraction, takePendingView } from './camera'
 import { type HoverInfo, Tooltip } from './Tooltip'
 
 maplibregl.setWorkerUrl(maplibreWorkerUrl)
@@ -26,7 +31,7 @@ export function registerLayers(provider: LayerProvider) {
 }
 
 const FRAME_MS = 1000 / 30
-const START = { center: [34.2, 44.4] as [number, number], zoom: 4.6, pitch: 35, bearing: -8 }
+const START = { center: [33.8, 48.0] as [number, number], zoom: 5.35, pitch: 42, bearing: -8 }
 
 export default function MapView() {
   const container = useRef<HTMLDivElement>(null)
@@ -34,6 +39,7 @@ export default function MapView() {
   const overlayRef = useRef<MapLibreOverlay | null>(null)
   const readyRef = useRef(false)
   const [hover, setHover] = useState<HoverInfo | null>(null)
+  const [mapInstance, setMapInstance] = useState<MLMap | null>(null)
   const basemap = useStore(ui, (s) => s.basemap)
   const globe = useStore(ui, (s) => s.globe)
   const terrain = useStore(ui, (s) => s.terrain)
@@ -43,9 +49,9 @@ export default function MapView() {
   useEffect(() => {
     if (!container.current) return
     const previous = mapRef.current
-    const view = previous
+    const view = takePendingView() ?? (previous
       ? { center: previous.getCenter().toArray() as [number, number], zoom: previous.getZoom(), pitch: previous.getPitch(), bearing: previous.getBearing() }
-      : START
+      : START)
     previous?.remove()
 
     const map = new maplibregl.Map({
@@ -53,19 +59,43 @@ export default function MapView() {
       style: basemap === 'satellite' ? satelliteStyle(ui.get().globe) : CARTO_DARK,
       ...view,
       maxPitch: 85,
+      centerClampedToGround: false,
       attributionControl: { compact: true },
       canvasContextAttributes: { antialias: true },
     })
     mapRef.current = map
+    setMapInstance(map)
+    releaseOnInteraction(map)
     if (import.meta.env.DEV) (window as unknown as { __map: MLMap }).__map = map
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right')
     map.addControl(new maplibregl.ScaleControl({ unit: 'nautical' }), 'bottom-right')
 
+    let deckHit = false
     const onClick = (info: PickingInfo) => {
       const e = info.object as Entity | undefined
-      if (e?.id) select(e.id)
+      if (e?.id) {
+        deckHit = true
+        select(e.id)
+      }
     }
+    // Regions are native layers: deck objects drawn over them win the click.
+    map.on('click', (ev) => {
+      if (deckHit) {
+        deckHit = false
+        return
+      }
+      const region = regionAt(map, ev.point.x, ev.point.y)
+      if (region && ui.get().layers.danger && ui.get().mode === 'military') select(region)
+    })
+    let deckHover = false
+    map.on('mousemove', (ev) => {
+      if (deckHover || !ui.get().layers.danger || ui.get().mode !== 'military') return
+      const id = regionAt(map, ev.point.x, ev.point.y)
+      const r = id ? live.entities.get(id) : undefined
+      setHover(r ? { x: ev.point.x, y: ev.point.y, kind: kindLabel(r), title: r.label, sub: describe(r) } : null)
+    })
     const onHover = (info: PickingInfo) => {
+      deckHover = !!info.object
       const picked = info.object as (Entity & Partial<Airfield>) | undefined
       // Region polygons carry only an id: show the live region entity behind them.
       const o = picked?.id ? ((live.entities.get(picked.id) as (Entity & Partial<Airfield>) | undefined) ?? picked) : picked
@@ -85,14 +115,18 @@ export default function MapView() {
     map.on('style.load', () => {
       if (!map.getSource('terrain')) map.addSource('terrain', TERRAIN_SOURCE)
       applyProjection(map, ui.get().globe, ui.get().terrain)
+      installNativeLayers(map)
     })
 
     let raf = 0
+    let heartbeat: ReturnType<typeof setInterval> | undefined
     const build = () => {
       const now = Date.now()
       const zoom = map.getZoom()
       const s = ui.get()
-      return [...[...providers].flatMap((p) => p({ zoom, now })), ...liveLayers({ zoom, now, ui: s, onClick, onHover })]
+      const danger = s.layers.buildings ? dangerPoints(now) : []
+      const glow = danger.length ? glowBuildings(map, danger, now) : []
+      return [...[...providers].flatMap((p) => p({ zoom, now })), ...liveLayers({ zoom, now, ui: s, onClick, onHover, danger, glow })]
     }
     map.on('load', () => {
       readyRef.current = true
@@ -111,20 +145,26 @@ export default function MapView() {
       } finally {
         map.isStyleLoaded = isStyleLoaded
       }
-      // Redraw at most ~30 fps (dead reckoning and pings stay smooth; laptops stay cool) and not
-      // at all while the tab is hidden.
+      // Redraw at most ~30 fps (dead reckoning and pings stay smooth; laptops stay cool). Browsers
+      // stop animation frames in hidden tabs, so a 2 s timer keeps state current there instead.
       let last = 0
-      const frame = (t: number) => {
-        raf = requestAnimationFrame(frame)
-        if (document.hidden || t - last < FRAME_MS) return
-        last = t
+      const update = () => {
         overlay.setProps({ layers: build() })
         const s = ui.get()
-        if (s.follow && s.selected) {
+        syncNativeLayers(map, s, Date.now())
+        if (s.camera === 'chase') chaseFrame(map, s)
+        else if (s.follow && s.selected) {
           const e = live.entities.get(s.selected)
           if (e && !map.isMoving()) map.easeTo({ center: [e.lon, e.lat], duration: 400 })
         }
       }
+      const frame = (t: number) => {
+        raf = requestAnimationFrame(frame)
+        if (document.hidden || t - last < FRAME_MS) return
+        last = t
+        update()
+      }
+      heartbeat = setInterval(() => document.hidden && update(), 2000)
       raf = requestAnimationFrame(frame)
     })
     live.connect()
@@ -132,6 +172,7 @@ export default function MapView() {
     void loadRegions()
     return () => {
       cancelAnimationFrame(raf)
+      clearInterval(heartbeat)
       overlayRef.current = null
       readyRef.current = false
     }
@@ -141,6 +182,11 @@ export default function MapView() {
     const map = mapRef.current
     if (map && readyRef.current) applyProjection(map, globe, terrain)
   }, [globe, terrain])
+
+  const cameraNonce = useStore(ui, (s) => s.cameraNonce)
+  useEffect(() => {
+    if (cameraNonce && mapRef.current) applyCamera(mapRef.current, ui.get())
+  }, [cameraNonce])
 
   useEffect(() => {
     if (!flyTarget || !mapRef.current) return
@@ -158,6 +204,7 @@ export default function MapView() {
     <div className="map-wrap">
       <div ref={container} className="map" />
       {hover && <Tooltip {...hover} />}
+      <StrikePins map={mapInstance} />
     </div>
   )
 }

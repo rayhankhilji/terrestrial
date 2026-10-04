@@ -1,7 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#070b14"/>
-  <ellipse cx="32" cy="32" rx="24" ry="16" fill="none" stroke="#5eead4" stroke-width="3" transform="rotate(-25 32 32)"/>
-  <circle cx="15.8" cy="39.6" r="4.2" fill="#fbbf24"/>
-  <circle cx="48.2" cy="24.4" r="4.2" fill="#5eead4"/>
-  <circle cx="33.5" cy="38.5" r="3.4" fill="#f43f5e"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><defs><linearGradient id="e" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a3442"/><stop offset="1" stop-color="#0d1117"/></linearGradient></defs><rect width="32" height="32" rx="8" fill="#05070a"/><circle cx="16" cy="16" r="10.5" fill="url(#e)" stroke="#e9eef5" stroke-opacity=".9" stroke-width="1.4"/><path d="M8.2 19.6C12 17.4 20 17.4 23.8 19.6" fill="none" stroke="#e9eef5" stroke-opacity=".35"/><ellipse cx="16" cy="16" rx="14.2" ry="5.2" transform="rotate(-24 16 16)" fill="none" stroke="#f5c518" stroke-width="1.4"/><circle cx="27.1" cy="10.9" r="2.3" fill="#f5c518"/></svg>

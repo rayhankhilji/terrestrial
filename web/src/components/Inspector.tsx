@@ -1,8 +1,10 @@
+import { Crosshair, ExternalLink, LocateFixed, Navigation, View } from 'lucide-react'
 import { type Entity, live, useLive } from '../lib/live'
 import { ago, coord, describe, kindLabel, num, utc } from '../lib/format'
 import { AIRFRAME_LABELS, flagEmoji, ROLE_LABELS } from '../lib/picture'
 import { select, ui, useStore } from '../lib/store'
 import { entityColor } from '../map/liveLayers'
+import { AirThreatDetail, FrontDetail, GnssDetail, NewsDetail, PassesHere, SatelliteDetail } from './Details'
 import { ForecastChart } from './ForecastChart'
 import { Destinations } from './Destinations'
 import { ThreatDetail } from './ThreatBoard'
@@ -32,6 +34,8 @@ function pivots(e: Entity): { label: string; href: string }[] {
   }
   if (e.kind === 'facility') links.push({ label: 'Wikidata', href: p.url })
   if (e.kind === 'news') links.push({ label: 'Source article', href: p.url })
+  if (e.kind === 'airthreat') links.push({ label: 'Telegram post', href: p.url })
+  if (e.kind === 'satellite') links.push({ label: 'CelesTrak', href: `https://celestrak.org/NORAD/elements/gp.php?CATNR=${p.norad}&FORMAT=tle` })
   if (e.kind === 'fire')
     links.push({
       label: 'NASA FIRMS map',
@@ -85,7 +89,7 @@ function facts(e: Entity): [string, string][] {
       ['Day/night', p.daynight === 'D' ? 'day' : 'night'],
     )
   }
-  if (e.kind === 'news') {
+  if (e.kind === 'news' && !p.outlet) {
     rows.push(
       ['Place', p.place],
       ['Actors', (p.actors ?? []).join(', ') || '—'],
@@ -118,41 +122,43 @@ export function Inspector() {
   const c = entityColor(e)
   const relations = [...live.relations.values()].filter((r) => r.a === e.id || r.b === e.id)
   const alerts = live.alerts.filter((a) => a.entities.includes(e.id)).slice(0, 8)
+  const craft = e.kind === 'aircraft' || e.kind === 'vessel'
+  const placeable = !['region', 'net', 'sitrep', 'front'].includes(e.kind)
 
   return (
-    <aside className="inspector">
-      <header className="insp-head" style={{ borderColor: `rgb(${c[0]},${c[1]},${c[2]})` }}>
-        <div>
-          <div className="insp-kind" style={{ color: `rgb(${c[0]},${c[1]},${c[2]})` }}>
-            {kindLabel(e)}
-          </div>
-          <h2>{e.label}</h2>
-          <div className="muted">{describe(e)}</div>
+    <aside className="inspector glass" key={e.id}>
+      <header className="insp-head">
+        <div className="insp-kind" style={{ color: `rgb(${c[0]},${c[1]},${c[2]})` }}>
+          {kindLabel(e)}
+        </div>
+        <h2>{e.label}</h2>
+        <div className="sub">{describe(e)}</div>
+        <div className="insp-actions">
+          <span className={`prov prov-${e.prov}`}>{e.prov}</span>
+          {craft && (
+            <button className={`btn ${follow ? 'on' : ''}`} onClick={() => ui.set({ follow: !follow })}>
+              <LocateFixed size={14} /> {follow ? 'Following' : 'Follow'}
+            </button>
+          )}
+          <button className="btn" onClick={() => select(e.id, { lon: e.lon, lat: e.lat, zoom: e.kind === 'facility' ? 13 : e.kind === 'region' ? 6.5 : 9 })}>
+            <Navigation size={14} /> Fly to
+          </button>
+          {placeable && (
+            <button className="btn" onClick={() => ui.set({ camera: 'battlefield', cameraNonce: Date.now() })} title="Low 3D view over terrain and buildings here">
+              <View size={14} /> Battlefield
+            </button>
+          )}
+          {e.kind === 'aircraft' && (
+            <button className="btn" onClick={() => ui.set({ camera: 'chase', cameraNonce: Date.now() })} title="Follow at its altitude and heading">
+              <Crosshair size={14} /> Chase
+            </button>
+          )}
         </div>
         <button className="close" onClick={() => select(null)} aria-label="Close">
           ×
         </button>
       </header>
-
-      <div className="insp-actions">
-        <span className={`prov prov-${e.prov}`}>{e.prov}</span>
-        {(e.kind === 'aircraft' || e.kind === 'vessel') && (
-          <button className={follow ? 'on' : ''} onClick={() => ui.set({ follow: !follow })}>
-            {follow ? 'Following' : 'Follow'}
-          </button>
-        )}
-        <button
-          onClick={() =>
-            select(e.id, {
-              lon: e.lon,
-              lat: e.lat,
-              zoom: e.kind === 'facility' ? 13 : 9,
-            })
-          }
-        >
-          Fly to
-        </button>
-      </div>
+      <div className="insp-scroll">
 
       {e.props.sanctions && (
         <section className="callout danger">
@@ -166,6 +172,11 @@ export function Inspector() {
 
       {e.kind === 'net' && <NetDetail e={e} />}
       {e.kind === 'region' && <RegionDetail e={e} />}
+      {e.kind === 'airthreat' && <AirThreatDetail e={e} />}
+      {e.kind === 'satellite' && <SatelliteDetail e={e} />}
+      {e.kind === 'news' && <NewsDetail e={e} />}
+      {e.kind === 'gnss' && <GnssDetail e={e} />}
+      {e.kind === 'front' && <FrontDetail e={e} />}
 
       {e.props.mil_evidence?.length > 0 && (
         <section>
@@ -178,7 +189,7 @@ export function Inspector() {
         </section>
       )}
 
-      {e.kind !== 'net' && e.kind !== 'region' && (
+      {!['net', 'region', 'airthreat', 'satellite', 'gnss', 'front', 'sitrep'].includes(e.kind) && (
         <section>
           <h3>Facts</h3>
           <table className="facts">
@@ -197,6 +208,7 @@ export function Inspector() {
       {(e.kind === 'aircraft' || e.kind === 'vessel') && <ThreatDetail e={e} />}
       {e.kind === 'aircraft' && !e.props.on_ground && <Destinations />}
       {(e.kind === 'aircraft' || e.kind === 'vessel') && <FlightHistory kind={e.kind} />}
+      {['airthreat', 'facility', 'vessel', 'fire', 'news', 'region'].includes(e.kind) && <PassesHere e={e} />}
 
       {e.kind === 'station' && e.props.forecast && (
         <section>
@@ -296,14 +308,15 @@ export function Inspector() {
             tasking. Open each member to verify its track on ADS-B Exchange.
           </p>
         )}
-        <div className="pivots">
+        <div className="pivots small">
           {pivots(e).map((l) => (
             <a key={l.href} href={l.href} target="_blank" rel="noreferrer">
-              {l.label} ↗
+              {l.label} <ExternalLink size={11} />
             </a>
           ))}
         </div>
       </section>
+      </div>
     </aside>
   )
 }

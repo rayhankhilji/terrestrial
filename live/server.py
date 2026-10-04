@@ -211,6 +211,24 @@ def satellite_passes(lon: float, lat: float, hours: float = 24) -> dict:
     }
 
 
+@app.get("/live/geocode")
+def geocode(q: str, limit: int = 8) -> list[dict]:
+    """Place-name search (GeoNames: Ukraine, Russia, Belarus) for the command palette."""
+    from reference.gazetteer import gazetteer
+
+    return [
+        {
+            "name": p.name,
+            "lon": p.lon,
+            "lat": p.lat,
+            "country": p.country,
+            "population": p.population,
+            "feature": p.feature,
+        }
+        for p in gazetteer().search(q, limit=max(1, min(limit, 20)))
+    ]
+
+
 @app.get("/live/streams")
 def streams() -> list[dict]:
     """Every data stream with provider, cadence, licence, key requirement and live health."""

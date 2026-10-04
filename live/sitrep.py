@@ -23,6 +23,7 @@ log = logging.getLogger("terrestrial.live")
 
 NAME = "sitrep"
 EVERY_S = 600
+REBUILD_S = 30
 WINDOW_MS = 60 * 60 * 1000
 TASK = (
     "Write a SITREP of at most 6 short sentences for the next hours, most urgent first: the air "
@@ -196,6 +197,7 @@ class Sitrep:
 async def run(hub: Hub, rep: Sitrep) -> None:
     hub.source(NAME)
     last_prose = 0.0
+    await asyncio.sleep(20)  # let the first reports, alerts and tracks arrive
     while True:
         rep.build(hub)
         hub.upsert(rep.entity())
@@ -213,4 +215,4 @@ async def run(hub: Hub, rep: Sitrep) -> None:
         elif not featherless.featherless_key():
             detail += "; AI summary off (set FEATHERLESS_API_KEY)"
         hub.source_ok(NAME, detail)
-        await asyncio.sleep(60)
+        await asyncio.sleep(REBUILD_S)

@@ -52,13 +52,18 @@ export type LayerKey =
   | 'gnss'
   | 'front'
   | 'units'
+  | 'airthreats'
+  | 'satellites'
+  | 'buildings'
   | 'aois'
   | 'gaps'
   | 'sar'
   | 'encounters'
   | 'loitering'
   | 'portVisits'
-export type LeftTab = 'alerts' | 'threats' | 'live' | 'nets' | 'danger' | 'vessels' | 'highlights'
+export type LeftTab = 'brief' | 'airthreats' | 'priority' | 'nets' | 'danger' | 'space' | 'feed' | 'sources' | 'vessels'
+/** Camera presets: whole theatre on the globe, Ukraine tilted, a low battlefield view, or chasing the selection. */
+export type CameraView = 'globe' | 'theatre' | 'battlefield' | 'chase'
 
 export interface FlyTo {
   lon: number
@@ -80,6 +85,11 @@ export interface UIState {
   selected: string | null
   hovered: string | null
   leftTab: LeftTab
+  panelOpen: boolean
+  paletteOpen: boolean
+  camera: CameraView
+  /** bumped on every preset click, so re-clicking a preset re-frames */
+  cameraNonce: number
   sentinelsOpen: boolean
   modelCardOpen: false | 'strike' | 'flight'
   layersOpen: boolean
@@ -112,6 +122,9 @@ export const ui = createStore<UIState>({
     gnss: true,
     front: true,
     units: false,
+    airthreats: true,
+    satellites: true,
+    buildings: true,
     aois: true,
     gaps: true,
     sar: true,
@@ -121,10 +134,14 @@ export const ui = createStore<UIState>({
   },
   selected: null,
   hovered: null,
-  leftTab: 'alerts',
+  leftTab: 'brief',
+  panelOpen: true,
+  paletteOpen: false,
+  camera: 'theatre',
+  cameraNonce: 0,
   sentinelsOpen: false,
   modelCardOpen: false,
-  layersOpen: true,
+  layersOpen: false,
   follow: false,
   flyTo: null,
   search: '',

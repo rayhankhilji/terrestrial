@@ -1,10 +1,13 @@
 import type { Layer, PickingInfo } from '@deck.gl/core'
 import { PathStyleExtension, type PathStyleExtensionProps } from '@deck.gl/extensions'
-import { GeoJsonLayer, LineLayer, PathLayer, PolygonLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers'
+import { ColumnLayer, LineLayer, PathLayer, PolygonLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers'
 import { SimpleMeshLayer } from '@deck.gl/mesh-layers'
 import { ahead, type Entity, live, projected } from '../lib/live'
-import { type Airfield, airfields, dangerColor, frontShapes, loadFront, regionShapes, visible } from '../lib/picture'
+import { type Airfield, airfields, frontShapes, loadFront, visible } from '../lib/picture'
 import type { UIState } from '../lib/store'
+import type { DangerPoint } from '../lib/danger'
+import { weapon } from '../lib/weapons'
+import type { GlowBuilding } from './strikeGlow'
 import { DEST_COLORS, type Destination, type Flight, predState, type Terminal, trackState } from '../lib/track'
 import { aircraftMesh, helicopterMesh, shipMesh, uavMesh } from './meshes'
 
@@ -42,33 +45,6 @@ const MESH_MIN_ZOOM = 5.5
 const ALERT_RIPPLE_MS = 12000
 const DASH = new PathStyleExtension({ dash: true })
 const ON_TOP = { depthCompare: 'always' as const, depthWriteEnabled: false }
-
-interface FrontPolygon {
-  layer: string
-  rings: [number, number][][]
-}
-let frontCache: { snapshot: number | null; polygons: FrontPolygon[]; paths: [number, number][][] } = { snapshot: null, polygons: [], paths: [] }
-/** DeepState geometries flattened once per snapshot into plain polygons and paths. */
-function frontGeometry() {
-  if (frontCache.snapshot !== frontShapes.snapshot) {
-    const polygons: FrontPolygon[] = []
-    for (const f of frontShapes.areas) {
-      const g = f.geometry
-      const polys = g.type === 'Polygon' ? [g.coordinates] : g.type === 'MultiPolygon' ? g.coordinates : []
-      for (const rings of polys) polygons.push({ layer: f.properties.layer, rings })
-    }
-    const paths: [number, number][][] = []
-    for (const f of frontShapes.lines) {
-      const g = f.geometry
-      if (g.type === 'LineString') paths.push(g.coordinates)
-      else if (g.type === 'MultiLineString') paths.push(...g.coordinates)
-    }
-    frontCache = { snapshot: frontShapes.snapshot, polygons, paths }
-  }
-  return frontCache
-}
-const frontPolygons = () => frontGeometry().polygons
-const frontPaths = () => frontGeometry().paths
 
 /** Aircraft colour by role group: what it is doing matters more than who flies it. */
 export function aircraftColor(e: Entity): RGBA {
@@ -178,9 +154,29 @@ interface Context {
   ui: UIState
   onClick: (info: PickingInfo) => void
   onHover: (info: PickingInfo) => void
+  danger?: DangerPoint[]
+  glow?: GlowBuilding[]
 }
 
-export function liveLayers({ zoom, now, ui, onClick, onHover }: Context): Layer[] {
+/** A great-circle arc from a to b, lifted into a parabola `peakM` high at its middle. */
+function arc(a: [number, number], b: [number, number], peakM: number, n = 32): [number, number, number][] {
+  const out: [number, number, number][] = []
+  for (let i = 0; i <= n; i++) {
+    const t = i / n
+    out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, Math.sin(Math.PI * t) * peakM])
+  }
+  return out
+}
+
+function km(a: [number, number], b: [number, number]) {
+  const k = Math.cos(((a[1] + b[1]) / 2) * (Math.PI / 180))
+  return Math.hypot((b[0] - a[0]) * 111.32 * k, (b[1] - a[1]) * 110.574)
+}
+
+const THREAT_TTL_MS = 45 * 60_000
+const LOFT: Record<string, number> = { ballistic: 0.35, cruise_missile: 0.06, missile: 0.12, glide_bomb: 0.08, jet_uav: 0.04, uav: 0.03, unknown: 0.03 }
+
+export function liveLayers({ zoom, now, ui, onClick, onHover, danger = [], glow = [] }: Context): Layer[] {
   const L = ui.layers
   const all = [...live.entities.values()].filter((e) => visible(e, ui))
   const by = (kind: Entity['kind']) => all.filter((e) => e.kind === kind)
@@ -205,75 +201,11 @@ export function liveLayers({ zoom, now, ui, onClick, onHover }: Context): Layer[
   const common = { pickable: true, onClick, onHover }
   const layers: Layer[] = []
 
-  // Occupied territory and grey zone (DeepStateMap) sit under the danger choropleth; the front
-  // line itself is drawn above it further down.
-  if (L.front && frontShapes.snapshot != null) {
-    layers.push(
-      new PolygonLayer<FrontPolygon>({
-        id: 'front-areas',
-        data: frontPolygons(),
-        getPolygon: (p) => p.rings,
-        getFillColor: (p) => (p.layer === 'occupied' ? [220, 38, 38, 60] : [148, 163, 184, 70]),
-        stroked: false,
-        parameters: ON_TOP,
-      }),
-    )
-  }
-
-  // Danger zones: region choropleth of the model's probability of a new air-raid alert in the
-  // current 6-hour block; regions under an alert right now get a bright red outline.
-  if (L.danger && regionShapes.loaded) {
-    const regionOf = (f: { id: string }) => live.entities.get(f.id)
-    const pulse = 0.55 + 0.45 * Math.sin(now / 350)
-    layers.push(
-      new GeoJsonLayer({
-        id: 'danger-zones',
-        data: regionShapes.features,
-        filled: true,
-        stroked: true,
-        getFillColor: (f) => dangerColor(regionOf(f as { id: string })?.props.p_new, ui.selected === (f as { id: string }).id ? 190 : 120),
-        getLineColor: (f) => {
-          const r = regionOf(f as { id: string })
-          return r?.props.alert_active ? [255, 59, 48, Math.round(255 * pulse)] : [226, 232, 240, 70]
-        },
-        getLineWidth: (f) => (regionOf(f as { id: string })?.props.alert_active ? 3 : 1),
-        lineWidthUnits: 'pixels',
-        pickable: true,
-        onClick,
-        onHover,
-        parameters: ON_TOP,
-        updateTriggers: { getFillColor: [live.version, ui.selected], getLineColor: now, getLineWidth: live.version },
-      }),
-    )
-  }
-
-  // Front line (DeepStateMap): occupied territory, grey zone, the line itself, and on demand
-  // attack directions, estimated Russian unit positions and the airfields Russia operates from.
+  // DeepStateMap markers on demand: attack directions, estimated Russian unit positions and the
+  // airfields Russia operates from. (Occupied territory, grey zone and the front line itself are
+  // native MapLibre layers draped on the terrain: map/nativeLayers.ts.)
   const frontEntity = live.entities.get('front:deepstate')
   if (frontEntity && frontEntity.props.snapshot !== frontShapes.snapshot) void loadFront(frontEntity.props.snapshot)
-  if (L.front && frontShapes.snapshot != null) {
-    layers.push(
-      // Dark casing under a bright line, so the front reads over the red danger choropleth.
-      new PathLayer<[number, number][]>({
-        id: 'front-line-casing',
-        data: frontPaths(),
-        getPath: (p) => p,
-        getColor: [2, 6, 12, 220],
-        getWidth: 6,
-        widthUnits: 'pixels',
-        parameters: ON_TOP,
-      }),
-      new PathLayer<[number, number][]>({
-        id: 'front-line',
-        data: frontPaths(),
-        getPath: (p) => p,
-        getColor: [255, 214, 10, 255],
-        getWidth: 2.5,
-        widthUnits: 'pixels',
-        parameters: ON_TOP,
-      }),
-    )
-  }
   if (L.units && frontShapes.snapshot != null) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     type P = any
@@ -296,6 +228,272 @@ export function liveLayers({ zoom, now, ui, onClick, onHover }: Context): Layer[
         parameters: ON_TOP,
       }),
     )
+  }
+
+  // Air threats in flight (Air Force of Ukraine / monitors): a marker where the report places the
+  // threat, a lofted arc to the town it is reported heading for with a comet travelling along it,
+  // and a pulsing ring on that town. Everything fades out over the report's 45-minute life.
+  if (L.airthreats && ui.mode === 'military') {
+    const reports = by('airthreat').filter((e) => !e.props.tally && now - e.ts < THREAT_TTL_MS)
+    const life = (e: Entity) => Math.max(0.15, 1 - (now - e.ts) / THREAT_TTL_MS)
+    const arcs = reports
+      .filter((e) => e.props.to_place)
+      .map((e) => {
+        const a: [number, number] = [e.lon, e.lat]
+        const b: [number, number] = [e.props.to_place.lon, e.props.to_place.lat]
+        const peak = Math.min(120_000, km(a, b) * 1000 * (LOFT[e.props.weapon ?? 'unknown'] ?? 0.04))
+        return { e, path: arc(a, b, peak * altK) }
+      })
+    layers.push(
+      new PathLayer<{ e: Entity; path: [number, number, number][] }, PathStyleExtensionProps<{ e: Entity; path: [number, number, number][] }>>({
+        id: 'threat-arcs',
+        data: arcs,
+        getPath: (d) => d.path,
+        getColor: (d) => {
+          const c = weapon(d.e.props.weapon).color
+          return [c[0], c[1], c[2], Math.round(200 * life(d.e))]
+        },
+        getWidth: (d) => (ui.selected === d.e.id ? 3.5 : 2),
+        widthUnits: 'pixels',
+        getDashArray: [6, 4],
+        extensions: [DASH],
+        pickable: true,
+        onClick: (info) => info.object && onClick({ ...info, object: info.object.e }),
+        onHover: (info) => onHover({ ...info, object: info.object?.e }),
+        updateTriggers: { getColor: now, getWidth: ui.selected, getPath: altK },
+        parameters: ON_TOP,
+      }),
+      new ScatterplotLayer<{ e: Entity; path: [number, number, number][] }>({
+        id: 'threat-comets',
+        data: arcs,
+        getPosition: (d) => {
+          const t = ((now - d.e.ts) % 4000) / 4000
+          const i = Math.min(d.path.length - 1, Math.floor(t * (d.path.length - 1)))
+          return d.path[i]
+        },
+        getRadius: 4,
+        radiusUnits: 'pixels',
+        getFillColor: (d) => {
+          const c = weapon(d.e.props.weapon).color
+          return [c[0], c[1], c[2], 255]
+        },
+        updateTriggers: { getPosition: now },
+        parameters: ON_TOP,
+      }),
+      new ScatterplotLayer<{ e: Entity; path: [number, number, number][] }>({
+        id: 'threat-targets',
+        data: arcs,
+        getPosition: (d) => d.path[d.path.length - 1],
+        getRadius: () => 7 + 6 * (0.5 + 0.5 * Math.sin(now / 260)),
+        radiusUnits: 'pixels',
+        stroked: true,
+        filled: false,
+        lineWidthMinPixels: 1.5,
+        getLineColor: (d) => {
+          const c = weapon(d.e.props.weapon).color
+          return [c[0], c[1], c[2], Math.round(230 * life(d.e))]
+        },
+        updateTriggers: { getRadius: now, getLineColor: now },
+        parameters: ON_TOP,
+      }),
+      new ScatterplotLayer<Entity>({
+        id: 'threat-markers',
+        data: reports,
+        getPosition: (e) => [e.lon, e.lat],
+        getRadius: (e) => (ui.selected === e.id ? 9 : 6.5),
+        radiusUnits: 'pixels',
+        stroked: true,
+        lineWidthMinPixels: 2,
+        getFillColor: (e) => {
+          const c = weapon(e.props.weapon).color
+          return [c[0], c[1], c[2], Math.round(240 * life(e))]
+        },
+        getLineColor: [5, 7, 10, 230],
+        ...common,
+        updateTriggers: { getFillColor: now, getRadius: ui.selected },
+        parameters: ON_TOP,
+      }),
+    )
+    if (zoom >= 5.8) {
+      layers.push(
+        new TextLayer<Entity>({
+          id: 'threat-labels',
+          data: reports,
+          getPosition: (e) => [e.lon, e.lat],
+          getText: (e) => `${e.props.count ? `${e.props.count}× ` : ''}${weapon(e.props.weapon).short}${e.props.to_place ? ` → ${e.props.to_place.name}` : ''}`,
+          getSize: 11.5,
+          sizeUnits: 'pixels',
+          getColor: (e) => {
+            const c = weapon(e.props.weapon).color
+            return [c[0], c[1], c[2], Math.round(255 * life(e))]
+          },
+          getPixelOffset: [0, -16],
+          fontFamily: 'Geist Mono, ui-monospace, monospace',
+          fontWeight: 600,
+          outlineWidth: 3,
+          outlineColor: [5, 7, 10, 230],
+          fontSettings: { sdf: true },
+          updateTriggers: { getColor: now },
+          parameters: { ...ON_TOP, cullMode: 'none' as const },
+        }),
+      )
+    }
+    // The latest overnight tally: dashed arcs from each stated launch direction into Ukraine.
+    const tally = by('airthreat')
+      .filter((e) => e.props.tally && now - e.ts < 24 * 3600_000)
+      .sort((a, b) => b.ts - a.ts)[0]
+    if (tally && zoom < 7.5) {
+      const into: [number, number] = [tally.lon, tally.lat]
+      const launches = (tally.props.tally.launch_areas as { name: string; lon: number; lat: number }[]).map((a) => ({
+        a,
+        path: arc([a.lon, a.lat], into, Math.min(150_000, km([a.lon, a.lat], into) * 120) * altK),
+      }))
+      layers.push(
+        new PathLayer<{ a: { name: string }; path: [number, number, number][] }, PathStyleExtensionProps<{ a: { name: string }; path: [number, number, number][] }>>({
+          id: 'launch-arcs',
+          data: launches,
+          getPath: (d) => d.path,
+          getColor: [255, 77, 94, 120],
+          getWidth: 1.5,
+          widthUnits: 'pixels',
+          getDashArray: [2, 5],
+          extensions: [DASH],
+          updateTriggers: { getPath: altK },
+        }),
+        new TextLayer<{ a: { name: string; lon: number; lat: number } }>({
+          id: 'launch-labels',
+          data: launches,
+          getPosition: (d) => [d.a.lon, d.a.lat],
+          getText: (d) => `launch area · ${d.a.name}`,
+          getSize: 11,
+          sizeUnits: 'pixels',
+          getColor: [255, 122, 138, 230],
+          getPixelOffset: [0, 14],
+          fontFamily: 'Geist Mono, ui-monospace, monospace',
+          outlineWidth: 3,
+          outlineColor: [5, 7, 10, 230],
+          fontSettings: { sdf: true },
+          parameters: { ...ON_TOP, cullMode: 'none' as const },
+        }),
+      )
+    }
+  }
+
+  // Reported danger points in 3D: a light beam over each, and the real buildings around it lit
+  // red when zoomed in (battlefield view). Sources are air-threat headings/positions and
+  // strike-related headlines; nothing glows without a report behind it.
+  if (L.buildings && danger.length) {
+    const beams = danger.filter((d) => d.kind !== 'reported' || zoom >= 9)
+    layers.push(
+      new ColumnLayer<DangerPoint>({
+        id: 'danger-beams',
+        data: beams,
+        getPosition: (d) => [d.lon, d.lat],
+        diskResolution: 24,
+        radius: Math.max(40, 9000 / 2 ** (zoom - 7)),
+        extruded: true,
+        getElevation: (d) => (d.kind === 'news' ? 1800 : 3200) * Math.max(1, altK),
+        getFillColor: (d) => (d.kind === 'news' ? [255, 178, 36, 70] : [255, 59, 79, 85]),
+        material: false,
+        pickable: true,
+        onClick: (info) => {
+          const d = info.object as DangerPoint | undefined
+          const e = d ? live.entities.get(d.entity) : undefined
+          if (e) onClick({ ...info, object: e })
+        },
+        onHover: (info) => {
+          const d = info.object as DangerPoint | undefined
+          onHover({ ...info, object: d ? live.entities.get(d.entity) : undefined })
+        },
+        updateTriggers: { getElevation: altK },
+      }),
+    )
+    if (glow.length) {
+      const pulse = 0.55 + 0.45 * Math.sin(now / 420)
+      layers.push(
+        new PolygonLayer<GlowBuilding>({
+          id: 'danger-buildings',
+          data: glow,
+          getPolygon: (b) => b.polygon,
+          extruded: true,
+          getElevation: (b) => b.height + 0.5,
+          getFillColor: (b) => [255, 70 + Math.round(60 * (b.dist / 400)), 60, Math.round(210 * pulse * (1 - b.dist / 520))],
+          getLineColor: [255, 120, 100, 200],
+          material: { ambient: 0.6, diffuse: 0.5, shininess: 8, specularColor: [255, 120, 100] },
+          updateTriggers: { getFillColor: now },
+        }),
+      )
+    }
+  }
+
+  // Imaging satellites: position at true altitude (on the globe they float in space), a dashed
+  // ground track for the next 45 minutes, and the imaging reach of the selected one.
+  if (L.satellites) {
+    const sats = by('satellite')
+    const satColor = (e: Entity): RGBA => (e.props.sensor === 'SAR' ? [63, 213, 242, 255] : [245, 197, 24, 255])
+    const sel = sats.find((e) => e.id === ui.selected)
+    layers.push(
+      new PathLayer<Entity, PathStyleExtensionProps<Entity>>({
+        id: 'sat-tracks',
+        data: zoom < 7 ? sats : sel ? [sel] : [],
+        getPath: (e) => e.props.track,
+        getColor: (e) => {
+          const c = satColor(e)
+          return [c[0], c[1], c[2], e.id === ui.selected ? 200 : 45]
+        },
+        getWidth: (e) => (e.id === ui.selected ? 2 : 1),
+        widthUnits: 'pixels',
+        getDashArray: [3, 5],
+        extensions: [DASH],
+        updateTriggers: { getColor: ui.selected, getWidth: ui.selected },
+      }),
+      new ScatterplotLayer<Entity>({
+        id: 'sat-footprint',
+        data: sel ? [sel] : [],
+        getPosition: (e) => [e.lon, e.lat],
+        getRadius: (e) => e.props.access_km * 1000,
+        stroked: true,
+        filled: true,
+        getFillColor: (e) => {
+          const c = satColor(e)
+          return [c[0], c[1], c[2], 18]
+        },
+        getLineColor: (e) => satColor(e),
+        lineWidthMinPixels: 1,
+      }),
+      new ScatterplotLayer<Entity>({
+        id: 'satellites',
+        data: sats,
+        getPosition: (e) => [e.lon, e.lat, zoom < 6 ? (e.alt ?? 0) * 0.35 : 0],
+        getRadius: (e) => (e.id === ui.selected ? 6 : 3.5),
+        radiusUnits: 'pixels',
+        stroked: true,
+        lineWidthMinPixels: 1,
+        getFillColor: (e) => satColor(e),
+        getLineColor: [5, 7, 10, 255],
+        ...common,
+        updateTriggers: { getRadius: ui.selected, getPosition: zoom < 6 },
+      }),
+    )
+    if (zoom < 6.5 && zoom > 2.5) {
+      layers.push(
+        new TextLayer<Entity>({
+          id: 'sat-labels',
+          data: sats.filter((e) => e.props.sensor === 'SAR' && !e.props.tasked || e.id === ui.selected),
+          getPosition: (e) => [e.lon, e.lat, zoom < 6 ? (e.alt ?? 0) * 0.35 : 0],
+          getText: (e) => e.label,
+          getSize: 10.5,
+          sizeUnits: 'pixels',
+          getColor: (e) => satColor(e),
+          getPixelOffset: [0, -12],
+          fontFamily: 'Geist Mono, ui-monospace, monospace',
+          outlineWidth: 3,
+          outlineColor: [5, 7, 10, 230],
+          fontSettings: { sdf: true },
+          parameters: { cullMode: 'none' as const },
+        }),
+      )
+    }
   }
 
   // GNSS interference: share of aircraft per cell reporting degraded GPS accuracy (gpsjam-style).

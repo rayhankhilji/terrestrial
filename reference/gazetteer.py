@@ -13,6 +13,7 @@ locative / genitive / accusative endings seen in alert channels ("на Сумщ�
 
 from __future__ import annotations
 
+import bisect
 import math
 import re
 import zipfile
@@ -66,6 +67,25 @@ class Gazetteer:
     def __init__(self, places: list[Place], names: dict[str, list[int]]):
         self.places = places
         self.names = names
+        self._sorted: list[str] | None = None
+
+    def search(self, prefix: str, limit: int = 8, min_population: int = 1000) -> list[Place]:
+        """Places whose name starts with `prefix` (any language), most populous first."""
+        if self._sorted is None:
+            self._sorted = sorted(self.names)
+        p = norm(prefix)
+        if len(p) < 2:
+            return []
+        i = bisect.bisect_left(self._sorted, p)
+        hits: dict[int, Place] = {}
+        while i < len(self._sorted) and self._sorted[i].startswith(p) and len(hits) < 400:
+            for j in self.names[self._sorted[i]]:
+                pl = self.places[j]
+                if pl.population >= min_population or pl.feature == "AIRB":
+                    hits[j] = pl
+            i += 1
+        rank = lambda pl: COUNTRY_RANK[pl.country] - math.log10(pl.population + 1)  # noqa: E731
+        return sorted(hits.values(), key=rank)[:limit]
 
     def lookup(
         self, word: str, min_population: int = 0, countries: tuple[str, ...] = COUNTRIES

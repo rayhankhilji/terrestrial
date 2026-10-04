@@ -1,8 +1,10 @@
+import { Radar } from 'lucide-react'
 import { useMemo } from 'react'
 import { describe } from '../lib/format'
-import { type Entity, live } from '../lib/live'
+import { type Entity, live, useLive } from '../lib/live'
 import { flagEmoji, visible } from '../lib/picture'
 import { select, ui, useStore } from '../lib/store'
+import { PanelHead } from './ui'
 
 export interface ThreatReason {
   axis: 'threat' | 'intel'
@@ -28,6 +30,7 @@ export function threatColor(priority: number): string {
 
 /** Live craft ranked by priority (threat to Ukraine + half their intelligence significance). */
 export function ThreatBoard() {
+  useLive(2000)
   const mode = useStore(ui, (s) => s.mode)
   const states = useStore(ui, (s) => s.states)
   const selected = useStore(ui, (s) => s.selected)
@@ -42,40 +45,47 @@ export function ThreatBoard() {
   )
   const hostile = rows.filter((e) => e.props.threat.threat > 0).length
   return (
-    <div className="danger-panel">
-      <div className="danger-head">
-        <strong>Craft ranked by priority</strong>
-        <div className="muted small">
-          Heuristic score: threat to Ukraine (hostile or unattributed operator, role, distance, heading) plus half the intelligence significance
-          (missions, emergencies, GNSS interference, orbits). Not a probability, says nothing about intent. {hostile} of {rows.length} broadcasting
-          craft carry threat points; Russian military aviation does not broadcast.
-        </div>
+    <>
+      <PanelHead icon={Radar} title="Priority craft" sub={`${rows.length} broadcasting military craft · ${hostile} with threat points`}>
+        <span className="tag est">heuristic</span>
+      </PanelHead>
+      <div className="panel-body">
+        {rows.length === 0 && (
+          <div className="empty">
+            <p>No military craft in the picture yet.</p>
+          </div>
+        )}
+        <ul className="list">
+          {rows.map((e: Entity) => {
+            const t: ThreatScore = e.props.threat
+            const top = t.reasons.filter((r) => r.points > 0).sort((a, b) => b.points - a.points)
+            return (
+              <li key={e.id} className={`item ${selected === e.id ? 'selected' : ''}`} onClick={() => select(e.id, { lon: e.lon, lat: e.lat, zoom: 7 })}>
+                <span className="prio" style={{ borderColor: threatColor(t.priority), color: threatColor(t.priority) }}>
+                  {t.priority}
+                </span>
+                <div className="item-main">
+                  <div className="item-title ellipsis">
+                    {flagEmoji(e.props.state_code)} {e.label}
+                  </div>
+                  <div className="item-sub ellipsis">{describe(e)}</div>
+                  <div className="item-meta">
+                    {top.length ? top.slice(0, 3).map((r) => <span key={r.reason}>{r.reason}</span>) : <span>no scored factors</span>}
+                  </div>
+                </div>
+                <span className="num xs faint" title="threat / intel">
+                  {t.threat}/{t.intel}
+                </span>
+              </li>
+            )
+          })}
+        </ul>
       </div>
-      <ul className="list">
-        {rows.map((e: Entity) => {
-          const t: ThreatScore = e.props.threat
-          const top = t.reasons.filter((r) => r.points > 0).sort((a, b) => b.points - a.points)
-          return (
-            <li key={e.id} className={`entity danger-row ${selected === e.id ? 'selected' : ''}`} onClick={() => select(e.id, { lon: e.lon, lat: e.lat, zoom: 7 })}>
-              <span className="prio" style={{ borderColor: threatColor(t.priority), color: threatColor(t.priority) }}>
-                {t.priority}
-              </span>
-              <div className="entity-main">
-                <div className="entity-title">
-                  {flagEmoji(e.props.state_code)} {e.label} <span className="muted small">{describe(e)}</span>
-                </div>
-                <div className="entity-sub">
-                  {top.length ? top.slice(0, 3).map((r) => r.reason).join(' · ') : 'no scored factors'}
-                </div>
-              </div>
-              <span className="mono small muted" title="threat / intel">
-                {t.threat}/{t.intel}
-              </span>
-            </li>
-          )
-        })}
-      </ul>
-    </div>
+      <div className="panel-foot">
+        Threat to Ukraine (hostile or unattributed operator, role, distance to territory and front, heading) plus half the intelligence significance. Not a
+        probability; says nothing about intent. Russian military aviation does not broadcast.
+      </div>
+    </>
   )
 }
 
