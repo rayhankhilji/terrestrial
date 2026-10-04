@@ -26,3 +26,4 @@ saved from the live source. Nothing is hand-written.
 | `live/celestrak_sentinel1.json` | CelesTrak GP API response, `NAME=SENTINEL-1&FORMAT=json`, 4 Oct 2026 | CelesTrak (public) |
 | `live/telegram_kpszsu.html`, `live/telegram_war_monitor.html` | Telegram public web preview pages `t.me/s/kpszsu` (Air Force of Ukraine) and `t.me/s/war_monitor`, 4 Oct 2026 | public channel posts |
 | `live/rss_kyiv_independent.xml`, `live/rss_ukrainska_pravda.xml`, `live/rss_ukrinform.xml` | RSS feeds of the three news wires, 4 Oct 2026 | publisher terms; headlines and links only |
+| `gfw_client/event_item.json`, `gfw_client/vessel_item.json`, `gfw_client/fourwings_report_item.json` | Response fixtures of Global Fishing Watch's official Python client (`GlobalFishingWatch/gfw-api-python-client`, `tests/fixtures/`), used as the field contract until our own token-gated responses are cached; the event is a composite carrying every event sub-object | Apache-2.0, © Global Fishing Watch |
