@@ -1,5 +1,5 @@
 # Convenience targets. Every target is a thin wrapper over the commands in CLAUDE.md §12.
-.PHONY: setup graph-up graph-down pipeline pipeline-core api live web test test-graph lint check
+.PHONY: demo-cut demo publish setup graph-up graph-down pipeline pipeline-core api live web test test-graph lint check
 
 setup:            ## install Python and web dependencies
 	uv sync
@@ -22,6 +22,15 @@ pipeline-core:    ## pipeline without the graph layer
 
 api:              ## FastAPI on :8000
 	uv run uvicorn api.main:app --reload --port 8000
+
+demo-cut:         ## cut data/demo/demo.jsonl from a recording: make demo-cut DAY=20261003
+	uv run python -m live.demo --day $(DAY)
+
+demo:             ## replay data/demo/demo.jsonl at 10× (no network but basemap tiles); run make web alongside
+	LIVE_REPLAY=data/demo/demo.jsonl LIVE_REPLAY_SPEED=10 uv run uvicorn live.server:app --port 8001
+
+publish:          ## publish the latest trained models to the Hugging Face Hub (needs HF_TOKEN)
+	uv run python -m predict.publish
 
 live:             ## live service on :8001 (ADS-B, AIS, FIRMS, GDELT, weather → WebSocket)
 	uv run uvicorn live.server:app --port 8001

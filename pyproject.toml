@@ -8,6 +8,7 @@ requires-python = ">=3.11,<3.13"
 dependencies = [
     "fastapi>=0.115",
     "httpx>=0.28",
+    "huggingface-hub>=2.1.1",
     "networkx>=3.6.1",
     "pandas>=2.2",
     "pyarrow>=17",
