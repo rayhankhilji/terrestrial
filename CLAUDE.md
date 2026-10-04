@@ -327,3 +327,23 @@ Dark vessels (§1–15) remain as the **Maritime** sub-sector, one mode of the s
   accuracy (destination) against simple baselines; if a model does not beat them, the UI says so.
 - Historical sources are fetched by `history/` into `data/raw/history/` and normalised to
   `data/history/`; each is tested on a small saved real sample.
+
+### 16.5 Live intelligence feeds (Oct 2026)
+- **Air threats**: public Telegram web previews (`t.me/s/kpszsu`, `t.me/s/war_monitor`) parsed by
+  transparent rules (`live/sources/telegram.py`); every report keeps its original text and link.
+  A report is placed only where the post places it (reported position, region centre, or the
+  target town); unplaceable status posts stay text-only. Headings are reported courses, never
+  predicted impacts.
+- **Geocoding**: GeoNames UA/RU/BY (`reference/gazetteer.py`), Ukrainian inflection variants,
+  ambiguity resolved by population with a Ukraine bias (a foreign place must be >10× larger).
+  News headlines are placed only when they name a town of ≥ 5,000 people.
+- **Satellites**: a pass is an *opportunity*, never an acquisition; commercial SAR is tasked.
+- **SITREP**: facts are deterministic and always available; AI prose must cite them (§15.4).
+- **Registry**: the Streams panel counts only streams working now.
+
+### 16.6 Interface grammar
+- Observed = solid / cyan-neutral; model estimate or inference = violet + dashed tag; threat = red;
+  caution = amber; gold = brand and the front line only.
+- Area layers (danger forecast, alerts, occupied territory, front) are native MapLibre layers so
+  they drape on terrain and order under labels; point/path/3D layers are deck.gl.
+- 3D battlefield lighting of buildings uses only real OSM footprints near a reported point.
