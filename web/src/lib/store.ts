@@ -33,7 +33,6 @@ export function useStore<T extends object, S>(store: Store<T>, selector: (s: T) 
 
 export type Basemap = 'dark' | 'satellite'
 /** Military: the default defence picture (§16). Maritime: the dark-vessel sub-sector. */
-export type Mode = 'military' | 'maritime'
 export type LayerKey =
   | 'aircraft'
   | 'airfields'
@@ -61,6 +60,7 @@ export type LayerKey =
   | 'encounters'
   | 'loitering'
   | 'portVisits'
+  | 'merchant'
 export type LeftTab = 'brief' | 'airthreats' | 'priority' | 'nets' | 'danger' | 'space' | 'feed' | 'sources' | 'vessels'
 /** Camera presets: whole theatre on the globe, Ukraine tilted, a low battlefield view, or chasing the selection. */
 export type CameraView = 'globe' | 'theatre' | 'battlefield' | 'chase'
@@ -75,7 +75,6 @@ export interface FlyTo {
 }
 
 export interface UIState {
-  mode: Mode
   /** ISO alpha-2 codes of the states to show; empty = all */
   states: string[]
   basemap: Basemap
@@ -99,7 +98,6 @@ export interface UIState {
 }
 
 export const ui = createStore<UIState>({
-  mode: 'military',
   states: [],
   basemap: 'satellite',
   globe: true,
@@ -131,6 +129,7 @@ export const ui = createStore<UIState>({
     encounters: true,
     loitering: true,
     portVisits: true,
+    merchant: false,
   },
   selected: null,
   hovered: null,

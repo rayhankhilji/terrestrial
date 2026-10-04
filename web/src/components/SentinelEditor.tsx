@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { liveFetch } from '../lib/recording'
 import { live, type Sentinel, type SentinelNode, useLive } from '../lib/live'
 import { ui } from '../lib/store'
 
@@ -63,7 +64,7 @@ export function SentinelEditor() {
 
   async function save(s: Sentinel) {
     setError(null)
-    const res = await fetch(`/live/sentinels/${encodeURIComponent(s.id)}`, {
+    const res = await liveFetch(`/live/sentinels/${encodeURIComponent(s.id)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(s),
@@ -78,7 +79,7 @@ export function SentinelEditor() {
   }
 
   async function remove(s: Sentinel) {
-    const res = await fetch(`/live/sentinels/${encodeURIComponent(s.id)}`, { method: 'DELETE' })
+    const res = await liveFetch(`/live/sentinels/${encodeURIComponent(s.id)}`, { method: 'DELETE' })
     if (!res.ok && res.status !== 404) setError(`HTTP ${res.status}`)
     setDraft(null)
   }

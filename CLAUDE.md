@@ -341,9 +341,19 @@ Dark vessels (§1–15) remain as the **Maritime** sub-sector, one mode of the s
 - **SITREP**: facts are deterministic and always available; AI prose must cite them (§15.4).
 - **Registry**: the Streams panel counts only streams working now.
 
-### 16.6 Interface grammar
-- Observed = solid / cyan-neutral; model estimate or inference = violet + dashed tag; threat = red;
-  caution = amber; gold = brand and the front line only.
+### 16.6 Interface grammar (brand identity v1)
+- Brand palette only: ink (green-black), bone, slate teal, ochre, rust. Wordmark: lower-case
+  "terrestrial" in Newsreader; mark: nested rounded triangles as contour lines (`Logo.tsx`).
+- Observed = bone, solid; model estimate or inference = teal + dashed tag; threat = rust;
+  caution = amber; ochre = brand and the front line only. Satellite imagery is colour-graded
+  toward the palette.
 - Area layers (danger forecast, alerts, occupied territory, front) are native MapLibre layers so
   they drape on terrain and order under labels; point/path/3D layers are deck.gl.
 - 3D battlefield lighting of buildings uses only real OSM footprints near a reported point.
+
+### 16.7 One picture, hosted replay (Oct 2026)
+- Military and Maritime are one picture (no mode toggle): naval vessels always, merchant
+  shipping as a layer, dark vessels as a panel.
+- Hosted builds (Vercel, `VITE_RECORDED=1`) replay a real capture of the live server
+  (`live/capture.py`) in the browser with timestamps shifted to now, labelled RECORDED with the
+  capture time. Captures are deployed, never committed (`web/public/rec/` is gitignored).

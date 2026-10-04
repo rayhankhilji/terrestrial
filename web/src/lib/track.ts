@@ -1,4 +1,5 @@
 import { createStore, ui } from './store'
+import { liveFetch } from './recording'
 
 /** One row per observed position: [ts ms, lon, lat, alt m, speed kn, heading, on ground]. */
 export type TrackPoint = [number, number, number, number, number | null, number | null, boolean]
@@ -45,7 +46,7 @@ let timer: ReturnType<typeof setInterval> | null = null
 
 async function load(id: string) {
   try {
-    const res = await fetch(`/live/track/${encodeURIComponent(id)}?hours=48`)
+    const res = await liveFetch(`/live/track/${encodeURIComponent(id)}?hours=48`)
     if (trackState.get().id !== id) return
     if (res.status === 404) return trackState.set({ data: null, error: 'No history recorded for this track yet.' })
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -70,9 +71,9 @@ ui.subscribe(() => follow(ui.get().selected))
 
 /** Colours of the 1st, 2nd and 3rd most likely destination (panel and globe). */
 export const DEST_COLORS: [number, number, number][] = [
-  [56, 189, 248],
-  [167, 139, 250],
-  [148, 163, 184],
+  [121, 169, 178],
+  [208, 203, 190],
+  [130, 132, 124],
 ]
 
 /** One predicted destination: [lon, lat, alt m, seconds from now] along the path. */
@@ -127,7 +128,7 @@ let predTimer: ReturnType<typeof setInterval> | null = null
 
 async function loadPrediction(id: string) {
   try {
-    const res = await fetch(`/live/predict/${encodeURIComponent(id)}`)
+    const res = await liveFetch(`/live/predict/${encodeURIComponent(id)}`)
     if (predState.get().id !== id) return
     if (res.status === 404 || res.status === 503) {
       const body = await res.json().catch(() => ({}))

@@ -1,17 +1,16 @@
 import type { Entity } from './live'
+import { liveFetch } from './recording'
 import type { UIState } from './store'
 
 /**
- * What the current mode shows (CLAUDE.md §16.1). The live server already drops civil aircraft;
- * here the Military picture also hides merchant vessels and civil facilities, and the state
- * filter applies to anything attributed to a state.
+ * What the picture shows (CLAUDE.md §16.1): one military picture, air and sea together. The live
+ * server already drops civil aircraft; merchant vessels appear only with the Merchant shipping
+ * layer (dark-vessel work), civil facilities never. The state filter applies to anything
+ * attributed to a state.
  */
-export function visible(e: Entity, s: Pick<UIState, 'mode' | 'states'>): boolean {
-  if (s.mode === 'military') {
-    if (e.kind === 'vessel' && !e.props.military) return false
-    if (e.kind === 'facility' && e.props.type !== 'airbase' && e.props.type !== 'naval base') return false
-    if (e.kind === 'station') return false
-  }
+export function visible(e: Entity, s: Pick<UIState, 'states' | 'layers'>): boolean {
+  if (e.kind === 'vessel' && !e.props.military && !s.layers.merchant) return false
+  if (e.kind === 'facility' && e.props.type !== 'airbase' && e.props.type !== 'naval base' && e.props.type !== 'port') return false
   if (s.states.length && (e.kind === 'aircraft' || e.kind === 'vessel')) {
     return s.states.includes(e.props.state_code)
   }
@@ -68,11 +67,11 @@ export const AIRFRAME_LABELS: Record<string, string> = {
 }
 
 /** Military states present in the current picture, most entities first. */
-export function stateCounts(entities: Iterable<Entity>, mode: UIState['mode']) {
+export function stateCounts(entities: Iterable<Entity>) {
   const counts = new Map<string, { code: string; name: string; n: number }>()
   for (const e of entities) {
     if (e.kind !== 'aircraft' && e.kind !== 'vessel') continue
-    if (mode === 'military' && !e.props.military) continue
+    if (!e.props.military) continue
     const code = e.props.state_code
     if (!code) continue
     const row = counts.get(code) ?? { code, name: e.props.state ?? code.toUpperCase(), n: 0 }
@@ -106,7 +105,7 @@ export const airfields: { all: Airfield[]; loaded: boolean; error: string | null
 export async function loadAirfields() {
   if (airfields.loaded) return
   try {
-    const res = await fetch('/live/airfields')
+    const res = await liveFetch('/live/airfields')
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     airfields.all = await res.json()
     airfields.loaded = true
@@ -122,7 +121,7 @@ export const regionShapes: { features: any[]; loaded: boolean } = { features: []
 export async function loadRegions() {
   if (regionShapes.loaded) return
   try {
-    const res = await fetch('/live/regions')
+    const res = await liveFetch('/live/regions')
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const fc = await res.json()
     // Feature ids match the live region entities so clicks select them.
@@ -135,12 +134,12 @@ export async function loadRegions() {
 
 /** Probability → colour: clear at 0, amber in the middle, red near 1. */
 export function dangerColor(p: number | null | undefined, alpha = 150): [number, number, number, number] {
-  if (p == null) return [100, 116, 139, 40]
+  if (p == null) return [114, 116, 105, 40]
   const stops: [number, [number, number, number]][] = [
-    [0, [34, 197, 94]],
-    [0.35, [250, 204, 21]],
-    [0.65, [249, 115, 22]],
-    [1, [220, 38, 38]],
+    [0, [60, 95, 102]],
+    [0.35, [207, 169, 94]],
+    [0.65, [221, 100, 64]],
+    [1, [240, 70, 45]],
   ]
   for (let i = 1; i < stops.length; i++) {
     if (p <= stops[i][0]) {
@@ -150,7 +149,7 @@ export function dangerColor(p: number | null | undefined, alpha = 150): [number,
       return [0, 1, 2].map((j) => Math.round(c0[j] + k * (c1[j] - c0[j]))).concat(Math.round(alpha * (0.35 + 0.65 * p))) as [number, number, number, number]
     }
   }
-  return [220, 38, 38, alpha]
+  return [240, 70, 45, alpha]
 }
 
 /** DeepState front line, occupied territory and markers (from /live/front), refetched when the
@@ -163,7 +162,7 @@ export async function loadFront(snapshot: number | null) {
   if (frontLoading || (snapshot != null && snapshot === frontShapes.snapshot)) return
   frontLoading = true
   try {
-    const res = await fetch('/live/front')
+    const res = await liveFetch('/live/front')
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const fc = await res.json()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

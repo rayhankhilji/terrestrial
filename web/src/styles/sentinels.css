@@ -40,7 +40,7 @@
   cursor: pointer;
 }
 .sentinel-list li.on {
-  background: rgba(94, 234, 212, 0.1);
+  background: rgba(148, 181, 154, 0.1);
 }
 .led {
   width: 9px;
@@ -150,7 +150,7 @@
 }
 .gnode.flash {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(94, 234, 212, 0.4), 0 0 24px rgba(94, 234, 212, 0.45);
+  box-shadow: 0 0 0 2px rgba(148, 181, 154, 0.4), 0 0 24px rgba(148, 181, 154, 0.45);
 }
 .gnode-head {
   display: flex;
@@ -195,7 +195,7 @@
 }
 .gnode-body select,
 .gnode-body input {
-  background: #0b1220;
+  background: #111614;
   border: 1px solid var(--line-strong);
   border-radius: 6px;
   padding: 5px 7px;
@@ -224,7 +224,7 @@
   height: 14px;
   margin-top: -7px;
   border-radius: 50%;
-  background: #0b1220;
+  background: #111614;
   border: 2px solid var(--accent);
   cursor: crosshair;
 }

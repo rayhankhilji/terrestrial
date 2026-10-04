@@ -1,11 +1,11 @@
 <p align="center">
-  <img src="web/public/favicon.svg" width="84" alt="Terrestrial mark: the Earth's limb crossed by a tilted orbit, a gold point where the orbit meets the horizon" />
+  <img src="web/public/favicon.svg" width="84" alt="Terrestrial mark: nested rounded triangles drawn as topographic contour lines" />
 </p>
 
-<h1 align="center">Terrestrial</h1>
+<h1 align="center">terrestrial</h1>
 
 <p align="center">
-  <b>An open, predictive defence picture for Ukraine.</b><br/>
+  <b>The war's public signals on one live map: what is coming, where, and how sure we are.</b><br/>
   Live military air, air threats in flight, the front line, danger forecasts, GPS jamming, imaging satellites and dark vessels: fused from open sources, every number traceable to its evidence.<br/>
   Built for the European Defence Tech Hackathon, London, October 2026.
 </p>
@@ -26,9 +26,9 @@
 | **Space** | 80+ radar and optical imaging satellites tracked live, and when the next one can look at any place. |
 | **Situation brief** | The picture as numbered facts, always; with a Featherless key, an open-weight LLM writes a SITREP that must cite them. |
 | **3D battlefield** | Camera presets: globe, theatre, a low battlefield view over terrain and real buildings (reported danger points get light beams, lit buildings and pinned cards) and a chase camera behind any aircraft at its altitude. |
-| **Maritime** | The original dark-vessel challenge as a mode: AIS gaps, reachability ellipses, unmatched radar detections, occupied-port calls, sanctions, a versioned TuringDB network. |
+| **Maritime, same map** | Naval vessels sit in the one picture; the Dark vessels panel adds the original challenge: AIS gaps, reachability ellipses, unmatched radar detections, occupied-port calls, sanctions, a versioned TuringDB network. Merchant shipping is a layer. |
 
-**Honesty is a feature.** Observed facts are solid; model estimates and inferences are violet and dashed everywhere. Russian military aviation does not broadcast, so it appears only through Air Force reports, alerts and news. Submarines are never plotted. Fuel is never observed. Nothing is "confirmed".
+**Honesty is a feature.** Observed facts are bone-white and solid; model estimates and inferences are teal and dashed everywhere; threats are rust. Russian military aviation does not broadcast, so it appears only through Air Force reports, alerts and news. Submarines are never plotted. Fuel is never observed. Nothing is "confirmed".
 
 ## Quickstart
 
@@ -68,6 +68,20 @@ Put them in `.env` in the project folder (never in chat, never in git), then res
 
 The **Data streams** panel shows which streams are working and which are waiting for a key.
 
+### Hosted demo (Vercel)
+
+The hosted site has no Python server, so it replays a **real recording** of the live system in the
+browser (the WebSocket stream and every REST answer, timestamps shifted to now, labelled
+"RECORDED" with the capture time). The recording is deployed, never committed.
+
+```bash
+make live                    # in one terminal
+make capture MIN=12          # record 12 minutes into web/public/rec
+make deploy                  # VITE_RECORDED=1 build → vercel deploy --prebuilt --prod
+```
+
+A build with `VITE_LIVE_URL=https://…` talks to a remote live server instead.
+
 ### Demo without network
 
 ```bash
@@ -84,7 +98,7 @@ make publish                                 # private repos <you>/terrestrial-<
 
 ## Data (open sources only)
 
-Air: adsb.fi, adsb.lol (ODbL), ADS-B Exchange aircraft database, adsb.lol `globe_history` archive. Threats: Air Force of Ukraine and war_monitor public Telegram posts, the official air-raid alert map, DeepStateMap.Live. History: Vadimkin air-raid sirens dataset, VIINA 2.0. Space: CelesTrak. News: Kyiv Independent, Ukrainska Pravda, Ukrinform, GDELT. Reference: OurAirports, GeoNames (CC BY 4.0), Wikidata, Natural Earth, geoBoundaries. Weather: Open-Meteo (CC BY 4.0). Maritime: Global Fishing Watch, OpenSanctions (non-commercial, attribution).
+Air: adsb.fi, adsb.lol (ODbL; airplanes.live and ADS-B Exchange carry the same community feeds but their APIs need approval or payment), ADS-B Exchange aircraft database, adsb.lol `globe_history` archive. Threats: Air Force of Ukraine and war_monitor public Telegram posts, the official air-raid alert map, DeepStateMap.Live. History: Vadimkin air-raid sirens dataset, VIINA 2.0. Space: CelesTrak. News: Kyiv Independent, Ukrainska Pravda, Ukrinform, GDELT. Reference: OurAirports, GeoNames (CC BY 4.0), Wikidata, Natural Earth, geoBoundaries. Weather: Open-Meteo (CC BY 4.0). Maritime: Global Fishing Watch, OpenSanctions (non-commercial, attribution).
 
 ## Layout
 
@@ -95,7 +109,8 @@ history/    historical data lake: alerts, VIINA, weather, DeepState, adsb.lol ar
 reference/  airfields, aircraft register, ICAO ranges, gazetteer, land mask
 pipeline/   maritime pipeline: fetch → normalise → envelope → match → score → insights → brief
 graph/ api/ maritime graph (TuringDB) and API
-web/        Vite + React + TypeScript: MapLibre globe + deck.gl, the whole UI
+web/        Vite + React + TypeScript: MapLibre globe + deck.gl, the whole UI (src/lib/recording.ts: hosted replay)
+docs/       pitch notes (docs/pitch.md), methodology
 tests/      pytest on real saved responses (tests/fixtures/README.md lists every source)
 CLAUDE.md   the build spec and every decision taken since
 ```

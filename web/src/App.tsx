@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { CommandBar } from './components/CommandBar'
 import { Dock } from './components/Dock'
 import { Inspector } from './components/Inspector'
+import { Intro } from './components/Intro'
 import { LayerControl } from './components/LayerControl'
 import { FlightModelCard, ModelCard } from './components/ModelCard'
 import { Palette } from './components/Palette'
@@ -29,13 +30,14 @@ export default function App() {
       <Dock />
       <div className="attribution">
         ADS-B: adsb.fi, adsb.lol · Air Force of Ukraine · DeepStateMap · official air-raid alert map · VIINA · GeoNames · CelesTrak · Open-Meteo · GDELT · Kyiv Independent ·
-        Ukrainska Pravda · Ukrinform · OurAirports · Wikidata · Natural Earth · Esri imagery · © OpenStreetMap. Model estimates are labelled; nothing here is a
+        Ukrainska Pravda · Ukrinform · OurAirports · Wikidata · Natural Earth · Global Fishing Watch · OpenSanctions · Esri imagery · © OpenStreetMap. Model estimates are labelled; nothing here is a
         confirmed finding.
       </div>
       <Palette />
       {sentinelsOpen && <SentinelEditor />}
       {modelCardOpen === 'strike' && <ModelCard />}
       {modelCardOpen === 'flight' && <FlightModelCard />}
+      <Intro />
     </div>
   )
 }

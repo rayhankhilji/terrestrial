@@ -5,7 +5,8 @@ import { live, p50, useLive } from '../lib/live'
 import { ms } from '../lib/format'
 import { visible } from '../lib/picture'
 import { ui, useStore } from '../lib/store'
-import { Logo } from './Logo'
+import { Logo, Wordmark } from './Logo'
+import { RECORDED, recordingMeta } from '../lib/recording'
 
 function Clock() {
   const [now, setNow] = useState(Date.now())
@@ -56,30 +57,23 @@ function Health() {
 
 export function CommandBar() {
   useLive(1000)
-  const mode = useStore(ui, (s) => s.mode)
   const basemap = useStore(ui, (s) => s.basemap)
   const globe = useStore(ui, (s) => s.globe)
   const terrain = useStore(ui, (s) => s.terrain)
   const layersOpen = useStore(ui, (s) => s.layersOpen)
   const tracks = [...live.entities.values()].filter((e) => (e.kind === 'aircraft' || e.kind === 'vessel') && visible(e, ui.get())).length
   const threats = [...live.entities.values()].filter((e) => e.kind === 'airthreat' && !e.props.tally).length
+  const rec = recordingMeta()
   const connection = live.mode === 'replay' ? 'replay' : live.connected ? 'live' : 'offline'
 
   return (
     <header className="cmdbar glass">
-      <div className="wordmark">
-        <Logo />
+      <div className="wordmark" title="Terrestrial: open predictive defence picture">
+        <Logo size={30} />
         <div>
-          <div className="wordmark-name">TERRESTRIAL</div>
-          <div className="wordmark-sub">{mode === 'military' ? 'Air & threat picture · Ukraine' : 'Maritime · dark vessels'}</div>
+          <Wordmark size={21} />
+          <div className="wordmark-sub">Ukraine · air, sea & threat picture</div>
         </div>
-      </div>
-      <div className="seg" role="tablist" aria-label="Picture">
-        {(['military', 'maritime'] as const).map((m) => (
-          <button key={m} role="tab" aria-selected={mode === m} className={mode === m ? 'on' : ''} onClick={() => ui.set({ mode: m, leftTab: m === 'maritime' ? 'vessels' : 'brief' })}>
-            {m === 'military' ? 'Military' : 'Maritime'}
-          </button>
-        ))}
       </div>
       <button className="searchbox" onClick={() => ui.set({ paletteOpen: true })} aria-label="Search">
         <Search size={15} />
@@ -103,9 +97,20 @@ export function CommandBar() {
           <span className="metric-label">latency</span>
         </span>
       </div>
-      <span className={`live-chip ${connection}`} title={connection === 'replay' ? 'Replaying a recorded session' : connection === 'live' ? 'Connected to the live hub' : 'Disconnected: reconnecting'}>
+      <span
+        className={`live-chip ${connection}`}
+        title={
+          RECORDED
+            ? `A real capture of the live system, replayed in your browser. Captured ${rec ? new Date(rec.captured_from).toUTCString() : '…'}; times are shifted to now.`
+            : connection === 'replay'
+              ? 'Replaying a recorded session'
+              : connection === 'live'
+                ? 'Connected to the live hub'
+                : 'Disconnected: reconnecting'
+        }
+      >
         <span className="dot" />
-        {connection.toUpperCase()}
+        {RECORDED ? `RECORDED${rec ? ' ' + new Date(rec.captured_from).toISOString().slice(5, 16).replace('T', ' ') + 'Z' : ''}` : connection.toUpperCase()}
       </span>
       <Clock />
       <Health />

@@ -1,7 +1,7 @@
 import { X } from 'lucide-react'
 import { live, useLive } from '../lib/live'
 import { flagEmoji, stateCounts } from '../lib/picture'
-import { type LayerKey, type Mode, toggleLayer, toggleState, ui, useStore } from '../lib/store'
+import { type LayerKey, toggleLayer, toggleState, ui, useStore } from '../lib/store'
 import { COLORS, type RGBA } from '../map/liveLayers'
 
 interface Item {
@@ -9,7 +9,6 @@ interface Item {
   label: string
   color: RGBA
   note?: string
-  modes: Mode[]
   est?: boolean
 }
 
@@ -17,37 +16,37 @@ const GROUPS: { title: string; items: Item[] }[] = [
   {
     title: 'Threat',
     items: [
-      { key: 'airthreats', label: 'Air threats in flight', color: [255, 178, 36, 255], note: 'Air Force reports', modes: ['military'] },
-      { key: 'danger', label: 'Danger forecast', color: [249, 115, 22, 255], note: 'next 6 h', modes: ['military'], est: true },
-      { key: 'front', label: 'Front line & occupied', color: [245, 197, 24, 255], note: 'DeepState', modes: ['military', 'maritime'] },
-      { key: 'units', label: 'Russian units & airfields', color: [251, 113, 133, 255], note: 'DeepState estimate', modes: ['military'], est: true },
-      { key: 'gnss', label: 'GPS jamming', color: [255, 77, 94, 255], note: 'ADS-B accuracy', modes: ['military', 'maritime'], est: true },
+      { key: 'airthreats', label: 'Air threats in flight', color: [226, 162, 74, 255], note: 'Air Force reports' },
+      { key: 'danger', label: 'Danger forecast', color: [221, 100, 64, 255], note: 'next 6 h', est: true },
+      { key: 'front', label: 'Front line & occupied', color: [207, 169, 94, 255], note: 'DeepState' },
+      { key: 'units', label: 'Russian units & airfields', color: [251, 113, 133, 255], note: 'DeepState estimate', est: true },
+      { key: 'gnss', label: 'GPS jamming', color: [228, 100, 64, 255], note: 'ADS-B accuracy', est: true },
     ],
   },
   {
     title: 'Craft',
     items: [
-      { key: 'aircraft', label: 'Military aircraft', color: COLORS.military, note: 'ADS-B', modes: ['military', 'maritime'] },
-      { key: 'vessels', label: 'Naval vessels', color: COLORS.naval_ship, note: 'AIS', modes: ['military'] },
-      { key: 'vessels', label: 'Vessels', color: COLORS.vessel, note: 'AIS', modes: ['maritime'] },
-      { key: 'nets', label: 'Mission nets', color: [45, 212, 191, 255], modes: ['military'], est: true },
-      { key: 'trails', label: 'Track history', color: [148, 163, 184, 255], modes: ['military', 'maritime'] },
-      { key: 'predictions', label: 'Predicted landing', color: [166, 139, 250, 255], modes: ['military'], est: true },
-      { key: 'forecast', label: 'Projected course', color: [148, 163, 184, 255], note: '10 min', modes: ['military', 'maritime'], est: true },
+      { key: 'aircraft', label: 'Military aircraft', color: COLORS.military, note: 'ADS-B' },
+      { key: 'vessels', label: 'Naval vessels', color: COLORS.naval_ship, note: 'AIS' },
+      { key: 'merchant', label: 'Merchant shipping', color: COLORS.vessel, note: 'AIS · dark-vessel work' },
+      { key: 'nets', label: 'Mission nets', color: [45, 212, 191, 255], est: true },
+      { key: 'trails', label: 'Track history', color: [148, 163, 184, 255] },
+      { key: 'predictions', label: 'Predicted landing', color: [121, 169, 178, 255], est: true },
+      { key: 'forecast', label: 'Projected course', color: [148, 163, 184, 255], note: '10 min', est: true },
     ],
   },
   {
     title: 'Ground & space',
     items: [
-      { key: 'airfields', label: 'Military airfields', color: COLORS.airfield, modes: ['military', 'maritime'] },
-      { key: 'smallFields', label: 'All airfields', color: [100, 116, 139, 255], modes: ['military'] },
-      { key: 'facilities', label: 'Bases & facilities', color: COLORS.naval, note: 'Wikidata', modes: ['military', 'maritime'] },
-      { key: 'satellites', label: 'Imaging satellites', color: [63, 213, 242, 255], note: 'CelesTrak', modes: ['military', 'maritime'] },
-      { key: 'buildings', label: '3D buildings & strike glow', color: [226, 232, 240, 255], note: 'zoom in', modes: ['military', 'maritime'] },
-      { key: 'fires', label: 'Thermal anomalies', color: COLORS.fire, note: 'NASA FIRMS', modes: ['military', 'maritime'] },
-      { key: 'news', label: 'News events', color: COLORS.news, modes: ['military', 'maritime'] },
-      { key: 'stations', label: 'Port conditions', color: COLORS.station, modes: ['maritime'] },
-      { key: 'relations', label: 'Inferred links', color: [255, 255, 255, 255], modes: ['military', 'maritime'], est: true },
+      { key: 'airfields', label: 'Military airfields', color: COLORS.airfield },
+      { key: 'smallFields', label: 'All airfields', color: [100, 116, 139, 255] },
+      { key: 'facilities', label: 'Bases & facilities', color: COLORS.naval, note: 'Wikidata' },
+      { key: 'satellites', label: 'Imaging satellites', color: [232, 227, 215, 255], note: 'CelesTrak' },
+      { key: 'buildings', label: '3D buildings & strike glow', color: [226, 232, 240, 255], note: 'zoom in' },
+      { key: 'fires', label: 'Thermal anomalies', color: COLORS.fire, note: 'NASA FIRMS' },
+      { key: 'news', label: 'News events', color: COLORS.news },
+      { key: 'stations', label: 'Port conditions', color: COLORS.station },
+      { key: 'relations', label: 'Inferred links', color: [255, 255, 255, 255], est: true },
     ],
   },
 ]
@@ -67,11 +66,10 @@ const swatch = (c: RGBA) => ({ background: `rgb(${c[0]},${c[1]},${c[2]})` })
 export function LayerControl() {
   useLive(1000)
   const layers = useStore(ui, (s) => s.layers)
-  const mode = useStore(ui, (s) => s.mode)
   const states = useStore(ui, (s) => s.states)
   const open = useStore(ui, (s) => s.layersOpen)
   if (!open) return null
-  const counts = stateCounts(live.entities.values(), mode)
+  const counts = stateCounts(live.entities.values())
   return (
     <div className="popover glass" style={{ left: 'auto', right: 'var(--gap)', top: 'calc(var(--gap) * 2 + var(--bar-h))', bottom: 'auto' }} role="dialog" aria-label="Layers">
       <div className="panel-head" style={{ paddingBottom: 10 }}>
@@ -86,7 +84,7 @@ export function LayerControl() {
         </button>
       </div>
       {GROUPS.map((g) => {
-        const items = g.items.filter((i) => i.modes.includes(mode))
+        const items = g.items
         if (!items.length) return null
         return (
           <div key={g.title} className="layer-group">

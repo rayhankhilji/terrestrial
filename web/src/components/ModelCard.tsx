@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { liveFetch } from '../lib/recording'
 import { ui } from '../lib/store'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -9,7 +10,7 @@ export function ModelCard() {
   const [cards, setCards] = useState<Record<string, Card> | null>(null)
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
-    fetch('/live/models/strike')
+    liveFetch('/live/models/strike')
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
       .then(setCards)
       .catch((err) => setError(String(err)))
@@ -109,7 +110,7 @@ export function FlightModelCard() {
   const [c, setCard] = useState<Card | null>(null)
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
-    fetch('/live/models/flight')
+    liveFetch('/live/models/flight')
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
       .then(setCard)
       .catch((err) => setError(String(err)))

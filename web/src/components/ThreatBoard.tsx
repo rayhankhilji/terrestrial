@@ -31,17 +31,17 @@ export function threatColor(priority: number): string {
 /** Live craft ranked by priority (threat to Ukraine + half their intelligence significance). */
 export function ThreatBoard() {
   useLive(2000)
-  const mode = useStore(ui, (s) => s.mode)
+  const layers = useStore(ui, (s) => s.layers)
   const states = useStore(ui, (s) => s.states)
   const selected = useStore(ui, (s) => s.selected)
   const version = live.version
   const rows = useMemo(
     () =>
       [...live.entities.values()]
-        .filter((e) => (e.kind === 'aircraft' || e.kind === 'vessel') && e.props.threat && visible(e, { mode, states }))
+        .filter((e) => (e.kind === 'aircraft' || e.kind === 'vessel') && e.props.threat && visible(e, { states, layers }))
         .sort((a, b) => b.props.threat.priority - a.props.threat.priority || b.props.threat.intel - a.props.threat.intel),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [version, mode, states],
+    [version, layers, states],
   )
   const hostile = rows.filter((e) => e.props.threat.threat > 0).length
   return (

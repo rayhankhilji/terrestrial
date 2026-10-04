@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { LIVE_URL, RECORDED, replay } from './recording'
 
 /** Wire types from live/hub.py */
 export type Kind = 'aircraft' | 'vessel' | 'fire' | 'news' | 'facility' | 'station' | 'net' | 'region' | 'gnss' | 'front' | 'airthreat' | 'satellite' | 'sitrep'
@@ -112,6 +113,7 @@ class LiveState {
   private listeners = new Set<() => void>()
   private ws: WebSocket | null = null
   private retry = 1000
+  private replaying = false
 
   subscribe(fn: () => void) {
     this.listeners.add(fn)
@@ -126,9 +128,20 @@ class LiveState {
   }
 
   connect() {
-    if (this.ws) return
+    if (this.ws || this.replaying) return
+    if (RECORDED) {
+      this.replaying = true
+      void replay(
+        (m, now) => this.handle(m as Message, now),
+        () => {
+          this.connected = true
+          this.changed()
+        },
+      )
+      return
+    }
     const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-    const ws = new WebSocket(`${proto}://${location.host}/live/ws`)
+    const ws = new WebSocket(LIVE_URL ? `${LIVE_URL.replace(/^http/, 'ws')}/live/ws` : `${proto}://${location.host}/live/ws`)
     this.ws = ws
     ws.onopen = () => {
       this.connected = true

@@ -9,17 +9,17 @@ import { Ago, PanelHead } from './ui'
 /** Current nets grouped by the state or organisation that flies them. */
 export function NetsPanel() {
   useLive(2000)
-  const mode = useStore(ui, (s) => s.mode)
+  const layers = useStore(ui, (s) => s.layers)
   const states = useStore(ui, (s) => s.states)
   const selected = useStore(ui, (s) => s.selected)
   const version = live.version
   const groups = useMemo(() => {
-    const nets = [...live.entities.values()].filter((e) => e.kind === 'net' && visible(e, { mode, states }))
+    const nets = [...live.entities.values()].filter((e) => e.kind === 'net' && visible(e, { states, layers }))
     const by = new Map<string, Entity[]>()
     for (const n of nets) by.set(netOwner(n), [...(by.get(netOwner(n)) ?? []), n])
     return [...by.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [version, mode, states])
+  }, [version, layers, states])
   const total = groups.reduce((n, [, g]) => n + g.length, 0)
 
   return (

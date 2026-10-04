@@ -16,7 +16,6 @@ interface Tab {
   key: LeftTab
   label: string
   icon: LucideIcon
-  modes: ('military' | 'maritime')[]
   badge?: () => { n: number; hot?: boolean } | null
 }
 
@@ -24,12 +23,11 @@ const count = (kind: string, pred: (p: Record<string, unknown>) => boolean = () 
   [...live.entities.values()].filter((e) => e.kind === kind && pred(e.props)).length
 
 const TABS: Tab[] = [
-  { key: 'brief', label: 'Situation brief', icon: ScrollText, modes: ['military', 'maritime'] },
+  { key: 'brief', label: 'Situation brief', icon: ScrollText },
   {
     key: 'airthreats',
     label: 'Air threats',
     icon: Siren,
-    modes: ['military'],
     badge: () => {
       const n = count('airthreat', (p) => !p.tally)
       return n ? { n, hot: true } : null
@@ -39,37 +37,34 @@ const TABS: Tab[] = [
     key: 'priority',
     label: 'Priority craft',
     icon: Radar,
-    modes: ['military', 'maritime'],
     badge: () => {
       const n = [...live.entities.values()].filter((e) => (e.props.threat?.priority ?? 0) >= 25).length
       return n ? { n } : null
     },
   },
-  { key: 'nets', label: 'Mission nets', icon: Network, modes: ['military'], badge: () => ({ n: count('net') }) },
+  { key: 'nets', label: 'Mission nets', icon: Network, badge: () => ({ n: count('net') }) },
   {
     key: 'danger',
     label: 'Danger forecast',
     icon: Gauge,
-    modes: ['military'],
     badge: () => {
       const n = count('region', (p) => !!p.alert_active)
       return n ? { n, hot: true } : null
     },
   },
-  { key: 'vessels', label: 'Dark vessels', icon: Ship, modes: ['maritime'] },
-  { key: 'space', label: 'Space · imaging passes', icon: Orbit, modes: ['military', 'maritime'] },
-  { key: 'feed', label: 'Feed · alerts & news', icon: Newspaper, modes: ['military', 'maritime'], badge: () => (live.alerts.length ? { n: live.alerts.length } : null) },
-  { key: 'sources', label: 'Data streams', icon: Database, modes: ['military', 'maritime'] },
+  { key: 'vessels', label: 'Dark vessels', icon: Ship },
+  { key: 'space', label: 'Space · imaging passes', icon: Orbit },
+  { key: 'feed', label: 'Feed · alerts & news', icon: Newspaper, badge: () => (live.alerts.length ? { n: live.alerts.length } : null) },
+  { key: 'sources', label: 'Data streams', icon: Database },
 ]
 
 export function Rail() {
   useLive(1000)
   const tab = useStore(ui, (s) => s.leftTab)
   const open = useStore(ui, (s) => s.panelOpen)
-  const mode = useStore(ui, (s) => s.mode)
   const rows = useStore(streams, (s) => s.rows)
   const failing = rows.filter((r) => ['error', 'missing'].includes(r.state)).length
-  const tabs = TABS.filter((t) => t.modes.includes(mode))
+  const tabs = TABS
   return (
     <nav className="rail glass" aria-label="Panels">
       {tabs.map((t, i) => {
@@ -94,9 +89,8 @@ export function Rail() {
 export function SidePanel() {
   const tab = useStore(ui, (s) => s.leftTab)
   const open = useStore(ui, (s) => s.panelOpen)
-  const mode = useStore(ui, (s) => s.mode)
   if (!open) return null
-  const valid = TABS.find((t) => t.key === tab && t.modes.includes(mode))
+  const valid = TABS.find((t) => t.key === tab)
   const key = valid ? tab : 'brief'
   return (
     <aside className="panel glass" key={key}>

@@ -44,8 +44,8 @@ export function installNativeLayers(map: MLMap) {
       type: 'fill',
       source: REGIONS,
       paint: {
-        'fill-color': ['interpolate', ['linear'], p, -1, 'rgba(0,0,0,0)', 0, '#22c55e', 0.35, '#facc15', 0.65, '#f97316', 1, '#dc2626'] as never,
-        'fill-opacity': ['case', ['<', p, 0], 0, ['+', 0.05, ['*', 0.26, p]]] as never,
+        'fill-color': ['interpolate', ['linear'], p, -1, 'rgba(0,0,0,0)', 0, '#3c5f66', 0.35, '#cfa95e', 0.65, '#dd6440', 1, '#f0462d'] as never,
+        'fill-opacity': ['case', ['<', p, 0], 0, ['+', 0.04, ['*', 0.17, p]]] as never,
       },
     },
     before,
@@ -55,18 +55,18 @@ export function installNativeLayers(map: MLMap) {
       id: 'tl-region-line',
       type: 'line',
       source: REGIONS,
-      paint: { 'line-color': 'rgba(226,232,240,0.28)', 'line-width': 0.8 },
+      paint: { 'line-color': 'rgba(232,227,215,0.24)', 'line-width': 0.8 },
     },
     before,
   )
-  map.addLayer({ id: 'tl-grey', type: 'fill', source: FRONT, filter: ['==', ['get', 'layer'], 'unknown'], paint: { 'fill-color': '#94a3b8', 'fill-opacity': 0.28 } }, before)
+  map.addLayer({ id: 'tl-grey', type: 'fill', source: FRONT, filter: ['==', ['get', 'layer'], 'unknown'], paint: { 'fill-color': '#8c8a80', 'fill-opacity': 0.26 } }, before)
   map.addLayer(
     {
       id: 'tl-occupied',
       type: 'fill',
       source: FRONT,
       filter: ['==', ['get', 'layer'], 'occupied'],
-      paint: { 'fill-color': '#dc2626', 'fill-opacity': 0.2 },
+      paint: { 'fill-color': '#9a3b22', 'fill-opacity': 0.22 },
     },
     before,
   )
@@ -75,7 +75,7 @@ export function installNativeLayers(map: MLMap) {
       id: 'tl-alert',
       type: 'line',
       source: REGIONS,
-      paint: { 'line-color': '#ff3b4f', 'line-width': 2.6, 'line-opacity': ['case', ['boolean', ['feature-state', 'alert'], false], 0.9, 0] as never },
+      paint: { 'line-color': '#f0582f', 'line-width': 2.6, 'line-opacity': ['case', ['boolean', ['feature-state', 'alert'], false], 0.9, 0] as never },
     },
     before,
   )
@@ -85,7 +85,7 @@ export function installNativeLayers(map: MLMap) {
       type: 'line',
       source: REGIONS,
       paint: {
-        'line-color': '#ff3b4f',
+        'line-color': '#f0582f',
         'line-width': 10,
         'line-blur': 8,
         'line-opacity': ['case', ['boolean', ['feature-state', 'alert'], false], 0.35, 0] as never,
@@ -100,7 +100,7 @@ export function installNativeLayers(map: MLMap) {
       source: FRONT,
       filter: ['==', ['get', 'layer'], 'front'],
       layout: { 'line-join': 'round', 'line-cap': 'round' },
-      paint: { 'line-color': '#05070a', 'line-width': ['interpolate', ['linear'], ['zoom'], 4, 4, 10, 8], 'line-opacity': 0.85 },
+      paint: { 'line-color': '#0d1110', 'line-width': ['interpolate', ['linear'], ['zoom'], 4, 4, 10, 8], 'line-opacity': 0.85 },
     },
     before,
   )
@@ -111,7 +111,7 @@ export function installNativeLayers(map: MLMap) {
       source: FRONT,
       filter: ['==', ['get', 'layer'], 'front'],
       layout: { 'line-join': 'round', 'line-cap': 'round' },
-      paint: { 'line-color': '#f5c518', 'line-width': ['interpolate', ['linear'], ['zoom'], 4, 1.8, 10, 3.5] },
+      paint: { 'line-color': '#cfa95e', 'line-width': ['interpolate', ['linear'], ['zoom'], 4, 1.8, 10, 3.5] },
     },
     before,
   )
@@ -146,11 +146,10 @@ export function syncNativeLayers(map: MLMap, ui: UIState, now: number) {
   const show = (id: string, on: boolean) => {
     if (map.getLayer(id) && (map.getLayoutProperty(id, 'visibility') !== 'none') !== on) map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none')
   }
-  const military = ui.mode === 'military'
-  show('tl-danger', ui.layers.danger && military)
-  show('tl-region-line', ui.layers.danger && military)
-  show('tl-alert', ui.layers.danger && military)
-  show('tl-alert-glow', ui.layers.danger && military)
+  show('tl-danger', ui.layers.danger)
+  show('tl-region-line', ui.layers.danger)
+  show('tl-alert', ui.layers.danger)
+  show('tl-alert-glow', ui.layers.danger)
   for (const id of ['tl-grey', 'tl-occupied', 'tl-front-casing', 'tl-front']) show(id, ui.layers.front)
   for (const id of ['buildings-3d']) show(id, ui.layers.buildings)
   if (map.getLayer('tl-alert') && now - st.pulse > 90) {

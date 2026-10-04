@@ -1,4 +1,5 @@
 import { createStore } from './store'
+import { liveFetch } from './recording'
 
 /** REST feeds polled on demand (the WebSocket carries entities; these are tables). */
 
@@ -47,7 +48,7 @@ export const passes = createStore<{ key: string | null; label: string | null; ro
 })
 
 async function json<T>(url: string): Promise<T> {
-  const r = await fetch(url)
+  const r = await liveFetch(url)
   if (!r.ok) {
     const body = await r.json().catch(() => ({}))
     throw new Error(body.detail ?? `HTTP ${r.status}`)

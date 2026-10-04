@@ -1,4 +1,5 @@
 import { Command, Crosshair, Layers, MapPin, Search } from 'lucide-react'
+import { liveFetch } from '../lib/recording'
 import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { describe, kindLabel } from '../lib/format'
 import { live } from '../lib/live'
@@ -28,13 +29,12 @@ const COMMANDS: { title: string; sub: string; run: () => void }[] = [
     run: () => ui.set({ leftTab: t, panelOpen: true }),
   })),
   ...(['globe', 'theatre', 'battlefield', 'chase'] as CameraView[]).map((c) => ({ title: `Camera: ${c}`, sub: 'view', run: () => ui.set({ camera: c, cameraNonce: Date.now() }) })),
-  ...(['danger', 'front', 'units', 'gnss', 'airthreats', 'satellites', 'predictions', 'nets', 'buildings'] as LayerKey[]).map((k) => ({
+  ...(['danger', 'front', 'units', 'gnss', 'airthreats', 'satellites', 'predictions', 'nets', 'buildings', 'merchant'] as LayerKey[]).map((k) => ({
     title: `Toggle layer: ${k}`,
     sub: 'layer',
     run: () => toggleLayer(k),
   })),
-  { title: 'Switch to Military picture', sub: 'mode', run: () => ui.set({ mode: 'military', leftTab: 'brief' }) },
-  { title: 'Switch to Maritime (dark vessels)', sub: 'mode', run: () => ui.set({ mode: 'maritime', leftTab: 'vessels' }) },
+  { title: 'Open dark vessels', sub: 'panel', run: () => ui.set({ leftTab: 'vessels', panelOpen: true }) },
   { title: 'Satellite imagery / dark map', sub: 'view', run: () => ui.set((s) => ({ basemap: s.basemap === 'satellite' ? 'dark' : 'satellite' })) },
   { title: 'Sentinels: alert rules', sub: 'tool', run: () => ui.set({ sentinelsOpen: true }) },
 ]
@@ -76,7 +76,7 @@ export function Palette() {
     }
     const ctl = new AbortController()
     const t = setTimeout(() => {
-      fetch(`/live/geocode?q=${encodeURIComponent(q.trim())}&limit=6`, { signal: ctl.signal })
+      liveFetch(`/live/geocode?q=${encodeURIComponent(q.trim())}&limit=6`, { signal: ctl.signal })
         .then((r) => (r.ok ? r.json() : []))
         .then(setPlaces)
         .catch(() => undefined)

@@ -14,26 +14,27 @@ import { aircraftMesh, helicopterMesh, shipMesh, uavMesh } from './meshes'
 export type RGBA = [number, number, number, number]
 
 export const COLORS = {
-  civil: [147, 197, 253, 255] as RGBA,
-  military: [251, 191, 36, 255] as RGBA,
-  uav: [244, 114, 182, 255] as RGBA,
-  isr: [251, 191, 36, 255] as RGBA,
-  tanker: [45, 212, 191, 255] as RGBA,
-  airlift: [147, 197, 253, 255] as RGBA,
-  combat: [248, 113, 113, 255] as RGBA,
-  rotary: [163, 230, 53, 255] as RGBA,
-  naval_ship: [56, 189, 248, 255] as RGBA,
-  airfield: [203, 213, 225, 255] as RGBA,
-  vessel: [94, 234, 212, 255] as RGBA,
-  listed: [244, 63, 94, 255] as RGBA,
-  fire: [255, 122, 48, 255] as RGBA,
-  news: [167, 139, 250, 255] as RGBA,
-  station: [226, 232, 240, 255] as RGBA,
-  port: [148, 163, 184, 255] as RGBA,
-  refinery: [250, 204, 21, 255] as RGBA,
-  airbase: [96, 165, 250, 255] as RGBA,
-  naval: [56, 189, 248, 255] as RGBA,
-  selected: [255, 255, 255, 255] as RGBA,
+  // brand palette, lifted for the screen: bone, ochre, rust, sage, stone, slate teal
+  civil: [170, 167, 156, 255] as RGBA,
+  military: [236, 231, 219, 255] as RGBA,
+  uav: [232, 138, 98, 255] as RGBA,
+  isr: [214, 176, 100, 255] as RGBA,
+  tanker: [184, 204, 176, 255] as RGBA,
+  airlift: [208, 203, 190, 255] as RGBA,
+  combat: [228, 104, 70, 255] as RGBA,
+  rotary: [200, 172, 128, 255] as RGBA,
+  naval_ship: [150, 188, 196, 255] as RGBA,
+  airfield: [204, 199, 186, 255] as RGBA,
+  vessel: [150, 158, 150, 255] as RGBA,
+  listed: [240, 88, 52, 255] as RGBA,
+  fire: [236, 120, 58, 255] as RGBA,
+  news: [214, 196, 152, 255] as RGBA,
+  station: [232, 227, 215, 255] as RGBA,
+  port: [170, 167, 156, 255] as RGBA,
+  refinery: [207, 169, 94, 255] as RGBA,
+  airbase: [196, 191, 176, 255] as RGBA,
+  naval: [150, 188, 196, 255] as RGBA,
+  selected: [255, 250, 240, 255] as RGBA,
 }
 
 const AIRCRAFT_MESH = aircraftMesh()
@@ -102,15 +103,15 @@ export function entityColor(e: Entity): RGBA {
 }
 
 export const MISSION_COLORS: Record<string, RGBA> = {
-  air_refuelling: [45, 212, 191, 255],
-  isr_orbit: [251, 191, 36, 255],
-  maritime_patrol: [56, 189, 248, 255],
-  airlift: [147, 197, 253, 255],
-  fighter_cap: [248, 113, 113, 255],
-  rotary_ops: [163, 230, 53, 255],
-  training: [203, 213, 225, 255],
-  vip_transport: [196, 181, 253, 255],
-  unknown: [226, 232, 240, 255],
+  air_refuelling: [184, 204, 176, 255],
+  isr_orbit: [214, 176, 100, 255],
+  maritime_patrol: [150, 188, 196, 255],
+  airlift: [208, 203, 190, 255],
+  fighter_cap: [228, 104, 70, 255],
+  rotary_ops: [200, 172, 128, 255],
+  training: [170, 167, 156, 255],
+  vip_transport: [190, 180, 200, 255],
+  unknown: [232, 227, 215, 255],
 }
 
 export function netColor(e: Entity): RGBA {
@@ -118,18 +119,18 @@ export function netColor(e: Entity): RGBA {
 }
 
 const RELATION_COLORS: Record<string, RGBA> = {
-  THERMAL_ANOMALY_AT: [255, 122, 48, 220],
-  REPORTED_AT: [167, 139, 250, 200],
-  PRESENT_IN_AOI: [244, 63, 94, 220],
+  THERMAL_ANOMALY_AT: [236, 120, 58, 220],
+  REPORTED_AT: [121, 169, 178, 200],
+  PRESENT_IN_AOI: [240, 88, 52, 220],
 }
 
 /** Altitude ramp for flight history: low = green, mid = amber, high = violet. */
 export function altitudeColor(m: number): RGBA {
   const stops: [number, RGBA][] = [
-    [0, [74, 222, 128, 255]],
-    [3000, [250, 204, 21, 255]],
-    [8000, [251, 146, 60, 255]],
-    [12000, [192, 132, 252, 255]],
+    [0, [148, 181, 154, 255]],
+    [3000, [232, 227, 215, 255]],
+    [8000, [214, 176, 100, 255]],
+    [12000, [228, 104, 70, 255]],
   ]
   if (m <= 0) return stops[0][1]
   for (let i = 1; i < stops.length; i++) {
@@ -233,7 +234,7 @@ export function liveLayers({ zoom, now, ui, onClick, onHover, danger = [], glow 
   // Air threats in flight (Air Force of Ukraine / monitors): a marker where the report places the
   // threat, a lofted arc to the town it is reported heading for with a comet travelling along it,
   // and a pulsing ring on that town. Everything fades out over the report's 45-minute life.
-  if (L.airthreats && ui.mode === 'military') {
+  if (L.airthreats) {
     const reports = by('airthreat').filter((e) => !e.props.tally && now - e.ts < THREAT_TTL_MS)
     const life = (e: Entity) => Math.max(0.15, 1 - (now - e.ts) / THREAT_TTL_MS)
     const arcs = reports
@@ -353,7 +354,7 @@ export function liveLayers({ zoom, now, ui, onClick, onHover, danger = [], glow 
           id: 'launch-arcs',
           data: launches,
           getPath: (d) => d.path,
-          getColor: [255, 77, 94, 120],
+          getColor: [228, 100, 64, 120],
           getWidth: 1.5,
           widthUnits: 'pixels',
           getDashArray: [2, 5],
@@ -393,7 +394,7 @@ export function liveLayers({ zoom, now, ui, onClick, onHover, danger = [], glow 
         radius: Math.max(40, 9000 / 2 ** (zoom - 7)),
         extruded: true,
         getElevation: (d) => (d.kind === 'news' ? 1800 : 3200) * Math.max(1, altK),
-        getFillColor: (d) => (d.kind === 'news' ? [255, 178, 36, 70] : [255, 59, 79, 85]),
+        getFillColor: (d) => (d.kind === 'news' ? [226, 162, 74, 70] : [240, 88, 52, 85]),
         material: false,
         pickable: true,
         onClick: (info) => {
@@ -430,7 +431,7 @@ export function liveLayers({ zoom, now, ui, onClick, onHover, danger = [], glow 
   // ground track for the next 45 minutes, and the imaging reach of the selected one.
   if (L.satellites) {
     const sats = by('satellite')
-    const satColor = (e: Entity): RGBA => (e.props.sensor === 'SAR' ? [63, 213, 242, 255] : [245, 197, 24, 255])
+    const satColor = (e: Entity): RGBA => (e.props.sensor === 'SAR' ? [232, 227, 215, 255] : [214, 176, 100, 255])
     const sel = sats.find((e) => e.id === ui.selected)
     layers.push(
       new PathLayer<Entity, PathStyleExtensionProps<Entity>>({
@@ -712,7 +713,7 @@ export function liveLayers({ zoom, now, ui, onClick, onHover, danger = [], glow 
         radiusUnits: 'pixels',
         stroked: true,
         lineWidthMinPixels: 1.5,
-        getFillColor: [167, 139, 250, 90],
+        getFillColor: [121, 169, 178, 90],
         getLineColor: COLORS.news,
         parameters: ON_TOP,
         ...common,
@@ -959,7 +960,7 @@ export function liveLayers({ zoom, now, ui, onClick, onHover, danger = [], glow 
         data: hints,
         getSourcePosition: (e) => pos(e),
         getTargetPosition: (e) => [e.props.pred.dest_lon, e.props.pred.dest_lat, 0],
-        getColor: (e) => [56, 189, 248, Math.round(25 + 90 * e.props.pred.p)],
+        getColor: (e) => [121, 169, 178, Math.round(25 + 90 * e.props.pred.p)],
         getWidth: 1,
         widthUnits: 'pixels',
         updateTriggers: { getSourcePosition: now },

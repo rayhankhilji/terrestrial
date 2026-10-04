@@ -47,8 +47,8 @@ export function satelliteStyle(globe: boolean): StyleSpecification {
       openmaptiles: { ...OPENMAPTILES, attribution: '© OpenStreetMap contributors, OpenFreeMap' },
     },
     layers: [
-      { id: 'background', type: 'background', paint: { 'background-color': '#02040a' } },
-      { id: 'imagery', type: 'raster', source: 'imagery', paint: { 'raster-saturation': -0.15, 'raster-contrast': 0.08 } },
+      { id: 'background', type: 'background', paint: { 'background-color': '#14211f' } },
+      { id: 'imagery', type: 'raster', source: 'imagery', paint: { 'raster-saturation': -0.58, 'raster-contrast': 0.12, 'raster-brightness-max': 0.86, 'raster-opacity': 0.9 } },
       {
         id: 'hillshade',
         type: 'hillshade',
@@ -61,7 +61,7 @@ export function satelliteStyle(globe: boolean): StyleSpecification {
         source: 'openmaptiles',
         'source-layer': 'boundary',
         filter: ['all', ['<=', ['get', 'admin_level'], 2], ['!=', ['get', 'maritime'], 1]],
-        paint: { 'line-color': 'rgba(255,255,255,0.55)', 'line-width': 1.2, 'line-dasharray': [3, 2] },
+        paint: { 'line-color': 'rgba(232,227,215,0.5)', 'line-width': 1.2, 'line-dasharray': [3, 2] },
       },
       {
         id: 'roads',
@@ -70,7 +70,7 @@ export function satelliteStyle(globe: boolean): StyleSpecification {
         'source-layer': 'transportation',
         minzoom: 11,
         filter: ['in', ['get', 'class'], ['literal', ['motorway', 'trunk', 'primary', 'secondary']]],
-        paint: { 'line-color': 'rgba(255,214,140,0.45)', 'line-width': ['interpolate', ['linear'], ['zoom'], 11, 0.5, 16, 3] },
+        paint: { 'line-color': 'rgba(207,169,94,0.42)', 'line-width': ['interpolate', ['linear'], ['zoom'], 11, 0.5, 16, 3] },
       },
       {
         id: 'buildings-3d',
@@ -79,7 +79,7 @@ export function satelliteStyle(globe: boolean): StyleSpecification {
         'source-layer': 'building',
         minzoom: 13,
         paint: {
-          'fill-extrusion-color': ['interpolate', ['linear'], ['coalesce', ['get', 'render_height'], 8], 0, '#9fb3c8', 60, '#e2e8f0'],
+          'fill-extrusion-color': ['interpolate', ['linear'], ['coalesce', ['get', 'render_height'], 8], 0, '#8e968e', 60, '#e8e3d7'],
           'fill-extrusion-height': ['coalesce', ['get', 'render_height'], 8],
           'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], 0],
           'fill-extrusion-opacity': 0.88,
@@ -92,13 +92,13 @@ export function satelliteStyle(globe: boolean): StyleSpecification {
         'source-layer': 'place',
         filter: ['in', ['get', 'class'], ['literal', ['city', 'town', 'country']]],
         layout: label(4) as never,
-        paint: { 'text-color': '#f8fafc', 'text-halo-color': 'rgba(0,0,0,0.85)', 'text-halo-width': 1.4 },
+        paint: { 'text-color': '#ece7db', 'text-halo-color': 'rgba(13,17,16,0.88)', 'text-halo-width': 1.4 },
       },
     ],
     sky: {
-      'sky-color': '#0b1a33',
-      'horizon-color': '#33507a',
-      'fog-color': '#0b1220',
+      'sky-color': '#0d1110',
+      'horizon-color': '#34525a',
+      'fog-color': '#101614',
       'sky-horizon-blend': 0.6,
       'horizon-fog-blend': 0.5,
       'fog-ground-blend': 0.6,

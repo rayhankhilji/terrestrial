@@ -31,7 +31,8 @@ export function registerLayers(provider: LayerProvider) {
 }
 
 const FRAME_MS = 1000 / 30
-const START = { center: [33.8, 48.0] as [number, number], zoom: 5.35, pitch: 42, bearing: -8 }
+// Opens on the whole globe; the intro then flies to the theatre preset.
+const START = { center: [24, 44] as [number, number], zoom: 1.9, pitch: 0, bearing: 0 }
 
 export default function MapView() {
   const container = useRef<HTMLDivElement>(null)
@@ -85,11 +86,11 @@ export default function MapView() {
         return
       }
       const region = regionAt(map, ev.point.x, ev.point.y)
-      if (region && ui.get().layers.danger && ui.get().mode === 'military') select(region)
+      if (region && ui.get().layers.danger) select(region)
     })
     let deckHover = false
     map.on('mousemove', (ev) => {
-      if (deckHover || !ui.get().layers.danger || ui.get().mode !== 'military') return
+      if (deckHover || !ui.get().layers.danger) return
       const id = regionAt(map, ev.point.x, ev.point.y)
       const r = id ? live.entities.get(id) : undefined
       setHover(r ? { x: ev.point.x, y: ev.point.y, kind: kindLabel(r), title: r.label, sub: describe(r) } : null)
@@ -128,7 +129,9 @@ export default function MapView() {
       const glow = danger.length ? glowBuildings(map, danger, now) : []
       return [...[...providers].flatMap((p) => p({ zoom, now })), ...liveLayers({ zoom, now, ui: s, onClick, onHover, danger, glow })]
     }
-    map.on('load', () => {
+    // 'load' waits for every tile of the opening globe flight (seconds); the overlay only needs
+    // the style document, so attach on the first style.load instead.
+    map.once('style.load', () => {
       readyRef.current = true
       const overlay = new MapLibreOverlay({ interleaved: true, layers: [] })
       overlayRef.current = overlay

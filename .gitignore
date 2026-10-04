@@ -25,3 +25,8 @@ web/dist/
 .idea/
 .vscode/
 *.swp
+
+# captured live-server recording for hosted builds (real data, not committed: CLAUDE.md §14)
+web/public/rec/
+.vercel/
+web/.vercel/
